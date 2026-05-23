@@ -8,12 +8,112 @@
     "background:#fff",
     "border-radius:16px",
     "padding:22px 24px 20px",
+    "position:relative",
     "box-shadow:0 24px 48px rgba(0,0,0,.22)",
     "font:400 14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",
     "color:#01256e",
     "text-align:center",
     "box-sizing:border-box",
   ].join(";");
+
+  const ONBOARDING_STYLE_ID = "ass-onboarding-styles";
+
+  function ensureOnboardingStyles() {
+    if (document.getElementById(ONBOARDING_STYLE_ID)) {
+      return;
+    }
+    const style = document.createElement("style");
+    style.id = ONBOARDING_STYLE_ID;
+    style.textContent = `
+      .ass-onboarding-share-btn {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 1px solid #dce2ea;
+        background: #fff;
+        padding: 0;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #01256e;
+      }
+      .ass-onboarding-share-btn:hover {
+        border-color: #ffbf00;
+      }
+      .ass-onboarding-share-btn:focus-visible {
+        outline: 2px solid #ffbf00;
+        outline-offset: 2px;
+      }
+      .ass-onboarding-share-btn.is-copied {
+        border-color: #16a34a;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .ass-onboarding-share-btn svg {
+        width: 17px;
+        height: 17px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .ass-onboarding-toast {
+        position: absolute;
+        bottom: 72px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1;
+        max-width: calc(100% - 48px);
+        box-sizing: border-box;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        line-height: 1.35;
+        text-align: center;
+        background: #15803d;
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(1, 37, 110, 0.15);
+        pointer-events: none;
+      }
+      .ass-onboarding-toast[hidden] {
+        display: none !important;
+      }
+      .ass-onboarding-toast--error {
+        background: #b91c1c;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  async function copyShareUrl(text) {
+    if (window.ASS_CLIPBOARD) {
+      return window.ASS_CLIPBOARD.copyText(text);
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;left:-9999px;top:0;";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        return document.execCommand("copy");
+      } catch {
+        return false;
+      } finally {
+        document.body.removeChild(ta);
+      }
+    }
+  }
 
   function clearOnboardingDismissed(done) {
     chrome.storage.local.remove(config.onboardingStorageKey, () => {
@@ -111,6 +211,9 @@
     }
 
     const builtByHref = ASS.branding.homepageUrl || "https://vijitdua.com";
+    const shareUrl = ASS.branding.shareUrl || "https://ass.vijit.app";
+
+    ensureOnboardingStyles();
 
     const backdrop = api.createStyledElement(
       "div",
@@ -128,6 +231,46 @@
     );
 
     const card = api.createStyledElement("div", CARD_STYLE);
+
+    const shareBtn = document.createElement("button");
+    shareBtn.type = "button";
+    shareBtn.className = "ass-onboarding-share-btn";
+    shareBtn.title = "Share";
+    shareBtn.setAttribute("aria-label", "Share Aggie Schedule Sniper");
+    shareBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v8a1 1 0 001 1h14a1 1 0 001-1v-8"></path><path d="M12 3v13"></path><path d="M8 8l4-4 4 4"></path></svg>';
+
+    const toast = document.createElement("div");
+    toast.className = "ass-onboarding-toast";
+    toast.hidden = true;
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+
+    let toastTimer = 0;
+    const showToast = (message, kind) => {
+      toast.textContent = message;
+      toast.classList.toggle("ass-onboarding-toast--error", kind === "error");
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => {
+        toast.hidden = true;
+      }, 3200);
+    };
+
+    shareBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void copyShareUrl(shareUrl).then((copied) => {
+        if (copied) {
+          shareBtn.classList.add("is-copied");
+          showToast("Copied to your clipboard", "success");
+          window.setTimeout(() => {
+            shareBtn.classList.remove("is-copied");
+          }, 2000);
+          return;
+        }
+        showToast("Couldn't copy link", "error");
+      });
+    });
 
     const logo = document.createElement("img");
     logo.src = chrome.runtime.getURL("128.png");
@@ -202,7 +345,7 @@
       });
     });
 
-    card.append(logo, title, tagline, list, builtBy, continueBtn);
+    card.append(shareBtn, logo, title, tagline, list, builtBy, toast, continueBtn);
     backdrop.appendChild(card);
     backdrop.addEventListener("click", (e) => {
       if (e.target === backdrop) {

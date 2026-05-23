@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Settings popup: info button in the header (top right) reopens the welcome / how-it-works modal
+- Onboarding modal: share button (top right) copies the extension link with copied-to-clipboard feedback
 
 ## [2.1.0] - 2026-05-23
 
