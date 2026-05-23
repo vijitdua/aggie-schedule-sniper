@@ -3,6 +3,7 @@ const SHARE_URL = branding.shareUrl || "https://ass.vijit.app";
 
 const sniperToggle = document.getElementById("sniperToggle");
 const countdownToggle = document.getElementById("countToggle");
+const waitingHelpersToggle = document.getElementById("waitingHelpersToggle");
 const modeBadge = document.getElementById("modeBadge");
 const shareBtn = document.getElementById("shareBtn");
 const infoBtn = document.getElementById("infoBtn");
@@ -10,6 +11,14 @@ const copyDebugBtn = document.getElementById("copyDebugBtn");
 const popupVersion = document.getElementById("popupVersion");
 const snackbar = document.getElementById("snackbar");
 const isEmbedded = new URLSearchParams(location.search).get("embedded") === "1";
+
+const DEFAULT_SETTINGS = {
+  autoRegister: true,
+  showCountdown: true,
+  keepSessionAlive: true,
+  warnBeforeClose: true,
+  keepScreenAwake: true,
+};
 
 let snackbarTimer = 0;
 
@@ -28,10 +37,27 @@ function showExtensionVersion() {
   popupVersion.textContent = version ? `v${version}` : "";
 }
 
+function isWaitingHelpersEnabled(saved) {
+  return (
+    !!saved.keepSessionAlive &&
+    !!saved.warnBeforeClose &&
+    !!saved.keepScreenAwake
+  );
+}
+
+function setWaitingHelpers(enabled) {
+  chrome.storage.sync.set({
+    keepSessionAlive: enabled,
+    warnBeforeClose: enabled,
+    keepScreenAwake: enabled,
+  });
+}
+
 function initializePopup() {
-  chrome.storage.sync.get({ autoRegister: true, showCountdown: true }, saved => {
+  chrome.storage.sync.get(DEFAULT_SETTINGS, (saved) => {
     sniperToggle.checked = !!saved.autoRegister;
     countdownToggle.checked = !!saved.showCountdown;
+    waitingHelpersToggle.checked = isWaitingHelpersEnabled(saved);
     updateModeBadge();
   });
 
@@ -42,6 +68,11 @@ function initializePopup() {
 
   countdownToggle.addEventListener("change", () => {
     chrome.storage.sync.set({ showCountdown: countdownToggle.checked });
+    updateModeBadge();
+  });
+
+  waitingHelpersToggle.addEventListener("change", () => {
+    setWaitingHelpers(waitingHelpersToggle.checked);
     updateModeBadge();
   });
 

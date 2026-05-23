@@ -123,6 +123,18 @@
     ui.countdownChip.style.display = "none";
     ui.statusChip.style.display = "none";
 
+    if (state.sessionExpiryWarning) {
+      applyStatusChipStyle(
+        "Please sign in again — session may have expired.",
+        "danger",
+      );
+      if (targetPass && shouldShowCountdown) {
+        ui.countdownChip.textContent = `⏳ ${api.formatCountdownLabel(targetPass)}`;
+        ui.countdownChip.style.display = "inline-flex";
+      }
+      return;
+    }
+
     if (isEverythingHidden) {
       applyStatusChipStyle(
         "Automatic registration is off — open ⚙ settings to enable",

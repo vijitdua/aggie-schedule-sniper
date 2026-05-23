@@ -25,10 +25,18 @@
     branding,
     config: {
       embeddedPanelWidthPx: 340,
-      embeddedPanelHeightPx: 308,
+      embeddedPanelHeightPx: 340,
       renderIntervalMs: 500,
       passActiveWindowMs: 4 * 60 * 60 * 1000,
       passCacheTtlMs: 8000,
+      sessionKeepaliveIntervalMs: 18 * 60 * 1000,
+      sessionKeepaliveCatchUpMs: 12 * 60 * 1000,
+      sessionBkgEndpoint: "/grid1/api/bkg/index.cfm",
+      sessionBkgPayload: "loadBkg=true",
+      sessionExpiryWarningButtonText: "Continue Session",
+      sessionCasLoginHost: "cas.ucdavis.edu",
+      sessionCloseWarningMessage:
+        "Aggie Schedule Sniper — are you sure you want to close Schedule Builder? You won't be auto-registered.",
       clickRetryBackoffMs: [250, 500, 1000, 2000, 3000],
       passTimeRegex:
         /Pass\s*(\d+)\s*:\s*([A-Za-z]{3}\s+\d{1,2},\s+\d{4}\s+\d{1,2}:\d{2}\s*(AM|PM))/gi,
@@ -42,10 +50,15 @@
       settings: {
         autoRegister: true,
         showCountdown: true,
+        keepSessionAlive: true,
+        warnBeforeClose: true,
+        keepScreenAwake: true,
       },
       selectedPassId: null,
       cachedRegisterButton: null,
       renderTimerId: null,
+      lastSessionKeepaliveAtMs: 0,
+      sessionExpiryWarning: false,
       simulatedPassTimeMs: getSimulatedPassTimeMsFromUrl(),
       passTimeCache: {
         items: [],

@@ -149,59 +149,17 @@
     proceed();
   }
 
-  function settingsBullet() {
+  function listItem() {
     const li = api.createStyledElement(
       "li",
-      "margin:0 0 10px;padding-left:20px;position:relative;text-align:left;color:#334155;",
+      "margin:0 0 10px;padding-left:20px;position:relative;line-height:1.45;text-align:left;color:#334155;",
     );
-    const dot = api.createStyledElement(
-      "span",
-      "position:absolute;left:0;top:0.45em;width:8px;height:8px;border-radius:50%;background:#ffbf00;",
+    li.appendChild(
+      api.createStyledElement(
+        "span",
+        "position:absolute;left:0;top:0.45em;width:8px;height:8px;border-radius:50%;background:#ffbf00;",
+      ),
     );
-    li.appendChild(dot);
-
-    const icon = document.createElement("img");
-    icon.src = chrome.runtime.getURL("128.png");
-    icon.alt = "";
-    icon.width = 18;
-    icon.height = 18;
-    icon.style.cssText =
-      "display:inline-block;width:18px;height:18px;margin:0 4px -2px;border-radius:4px;vertical-align:middle;object-fit:cover;";
-
-    li.append("Click on ", icon, " to change your settings");
-    return li;
-  }
-
-  function bullet(text, highlight) {
-    const li = api.createStyledElement(
-      "li",
-      "margin:0 0 10px;padding-left:20px;position:relative;text-align:left;color:#334155;",
-    );
-    const dot = api.createStyledElement(
-      "span",
-      "position:absolute;left:0;top:0.45em;width:8px;height:8px;border-radius:50%;background:#ffbf00;",
-    );
-    li.appendChild(dot);
-    if (highlight && text.includes(highlight)) {
-      const i = text.indexOf(highlight);
-      if (i >= 0) {
-        if (i > 0) {
-          li.append(text.slice(0, i));
-        }
-        li.append(
-          api.createStyledElement(
-            "strong",
-            "font-weight:600;color:#01256e;",
-            highlight,
-          ),
-        );
-        if (i + highlight.length < text.length) {
-          li.append(text.slice(i + highlight.length));
-        }
-        return li;
-      }
-    }
-    li.append(text);
     return li;
   }
 
@@ -286,22 +244,42 @@
     const tagline = api.createStyledElement(
       "p",
       "margin:0 0 16px;font-size:15px;font-weight:600;color:#51627d;",
-      "Automatic course registration",
+      "ass.vijit.app",
     );
 
     const list = api.createStyledElement(
       "ul",
-      "margin:0 auto 16px;padding:0;list-style:none;max-width:300px;",
+      "margin:0 auto 16px;padding:0;list-style:none;max-width:320px;",
     );
-    list.append(
-      bullet(
-        "Automatically registers you for your courses during your pass time",
-      ),
-      bullet(
-        "Keep this tab open, laptop awake, and connected to the internet for this to work",
-      ),
-      settingsBullet(),
+
+    const item1 = listItem();
+    item1.append(
+      "Automatically registers you for your classes during pass times to save you from waitlists in competitive courses",
     );
+    list.appendChild(item1);
+
+    const item2 = listItem();
+    item2.append(
+      "Keep your laptop on, and schedule builder open for this to work",
+    );
+    list.appendChild(item2);
+
+    const item3 = listItem();
+    item3.append(
+      "UC Davis logs you out after a few hours of inactivity. We try to keep you logged in, but refresh and login a few minutes before your passtime to be safe.",
+    );
+    list.appendChild(item3);
+
+    const item4 = listItem();
+    const settingsIcon = document.createElement("img");
+    settingsIcon.src = chrome.runtime.getURL("128.png");
+    settingsIcon.alt = "";
+    settingsIcon.width = 18;
+    settingsIcon.height = 18;
+    settingsIcon.style.cssText =
+      "display:inline-block;width:18px;height:18px;margin:0 4px -2px;border-radius:4px;vertical-align:middle;object-fit:cover;";
+    item4.append("Click ", settingsIcon, " to change your settings");
+    list.appendChild(item4);
 
     const builtBy = api.createStyledElement(
       "p",

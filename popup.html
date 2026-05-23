@@ -35,7 +35,10 @@
           <input type="checkbox" id="sniperToggle" />
           <span class="slider"></span>
         </label>
-        <span class="label">Automatically hit "Register ALL"</span>
+        <span class="label-wrap" tabindex="0" aria-describedby="autoRegisterTip">
+          <span class="label">Automatically hit "Register ALL"</span>
+          <span class="setting-tooltip" id="autoRegisterTip" role="tooltip">Clicks Register ALL when your pass time hits. Also works for 4 hours after your pass-time for any unregistered courses.</span>
+        </span>
       </section>
 
       <section class="setting-row">
@@ -43,7 +46,21 @@
           <input type="checkbox" id="countToggle" />
           <span class="slider"></span>
         </label>
-        <span class="label">Show pass-time countdown</span>
+        <span class="label-wrap" tabindex="0" aria-describedby="countdownTip">
+          <span class="label">Show pass-time countdown</span>
+          <span class="setting-tooltip" id="countdownTip" role="tooltip">Shows a countdown on Schedule Builder until your pass time.</span>
+        </span>
+      </section>
+
+      <section class="setting-row">
+        <label class="switch" aria-label="Keep me logged in">
+          <input type="checkbox" id="waitingHelpersToggle" />
+          <span class="slider"></span>
+        </label>
+        <span class="label-wrap" tabindex="0" aria-describedby="keepLoggedInTip">
+          <span class="label">Keep me logged in</span>
+          <span class="setting-tooltip" id="keepLoggedInTip" role="tooltip">Attempts to keep you logged in even when idle. UC Davis may still sign you out after a few hours.</span>
+        </span>
       </section>
     </div>
 

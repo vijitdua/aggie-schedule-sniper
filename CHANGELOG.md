@@ -6,10 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-05-23
+
 ### Added
 
 - Settings popup: info button in the header (top right) reopens the welcome / how-it-works modal
 - Onboarding modal: share button (top right) copies the extension link with copied-to-clipboard feedback
+- **Keep me logged in** setting (session heartbeat, tab-close warning, screen wake lock) while waiting for pass time
+- Hover tooltips on all popup toggles
+- Session debug logs (`session_guard`, `session_keepalive`, `session_close_warning`, `session_wake_lock`, `session_expiry_warning`)
+- Onboarding bullets covering competitive registration, Schedule Builder requirements, and UC Davis idle logout
+- Session expiry overlay chip when Continue Session, CAS login, or pass-times UI is missing
+- Tab-close warning while sniping (reloads allowed; tab close warning - browser shows its generic leave dialog)
 
 ## [2.1.0] - 2026-05-23
 

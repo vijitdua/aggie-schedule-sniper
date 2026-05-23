@@ -49,6 +49,9 @@
         : null,
       autoRegister: state.settings.autoRegister,
       showCountdown: state.settings.showCountdown,
+      keepSessionAlive: state.settings.keepSessionAlive,
+      warnBeforeClose: state.settings.warnBeforeClose,
+      keepScreenAwake: state.settings.keepScreenAwake,
       browserTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
   }
@@ -57,6 +60,9 @@
     const defaultSettings = {
       autoRegister: true,
       showCountdown: true,
+      keepSessionAlive: true,
+      warnBeforeClose: true,
+      keepScreenAwake: true,
     };
 
     chrome.storage.sync.get(defaultSettings, (storedValues) => {
@@ -65,11 +71,17 @@
       if (isTestMode) {
         state.settings.autoRegister = true;
         state.settings.showCountdown = true;
+        state.settings.keepSessionAlive = true;
+        state.settings.warnBeforeClose = true;
+        state.settings.keepScreenAwake = true;
 
         chrome.storage.sync.set(
           {
             autoRegister: true,
             showCountdown: true,
+            keepSessionAlive: true,
+            warnBeforeClose: true,
+            keepScreenAwake: true,
           },
           () => {
             onReady();
@@ -80,12 +92,19 @@
       }
       state.settings.autoRegister = !!storedValues.autoRegister;
       state.settings.showCountdown = !!storedValues.showCountdown;
+      state.settings.keepSessionAlive = !!storedValues.keepSessionAlive;
+      state.settings.warnBeforeClose = !!storedValues.warnBeforeClose;
+      state.settings.keepScreenAwake = !!storedValues.keepScreenAwake;
       onReady();
     });
   }
 
   function renderApp() {
     const passTimes = api.getParsedPassTimes();
+    const armed = api.isSnipingArmed?.(passTimes) ?? false;
+    if (window.self === window.top) {
+      api.syncSessionGuard?.(armed);
+    }
     const targetPass = api.selectTrackedPass(passTimes);
     const activePass = api.getCurrentlyActivePass(passTimes);
     api.initializePassTrackingState(passTimes);
@@ -157,7 +176,10 @@
 
       const touched =
         Object.prototype.hasOwnProperty.call(changes, "autoRegister") ||
-        Object.prototype.hasOwnProperty.call(changes, "showCountdown");
+        Object.prototype.hasOwnProperty.call(changes, "showCountdown") ||
+        Object.prototype.hasOwnProperty.call(changes, "keepSessionAlive") ||
+        Object.prototype.hasOwnProperty.call(changes, "warnBeforeClose") ||
+        Object.prototype.hasOwnProperty.call(changes, "keepScreenAwake");
 
       if (changes.autoRegister) {
         state.settings.autoRegister = !!changes.autoRegister.newValue;
@@ -167,13 +189,31 @@
         state.settings.showCountdown = !!changes.showCountdown.newValue;
       }
 
+      if (changes.keepSessionAlive) {
+        state.settings.keepSessionAlive = !!changes.keepSessionAlive.newValue;
+      }
+
+      if (changes.warnBeforeClose) {
+        state.settings.warnBeforeClose = !!changes.warnBeforeClose.newValue;
+      }
+
+      if (changes.keepScreenAwake) {
+        state.settings.keepScreenAwake = !!changes.keepScreenAwake.newValue;
+      }
+
       if (touched) {
         snipeLog("[settings_changed]", {
           autoRegister: state.settings.autoRegister,
           showCountdown: state.settings.showCountdown,
+          keepSessionAlive: state.settings.keepSessionAlive,
+          warnBeforeClose: state.settings.warnBeforeClose,
+          keepScreenAwake: state.settings.keepScreenAwake,
           fromStorage: {
             autoRegister: changes.autoRegister,
             showCountdown: changes.showCountdown,
+            keepSessionAlive: changes.keepSessionAlive,
+            warnBeforeClose: changes.warnBeforeClose,
+            keepScreenAwake: changes.keepScreenAwake,
           },
         });
       }
