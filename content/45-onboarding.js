@@ -215,5 +215,6 @@
   }
 
   api.maybeShowOnboarding = maybeShowOnboarding;
+  api.showOnboardingModal = renderOnboardingModal;
   api.clearOnboardingDismissed = clearOnboardingDismissed;
 })();

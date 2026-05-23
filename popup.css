@@ -94,6 +94,11 @@ html:has(body.embedded) {
   justify-self: start;
 }
 
+.title-row #infoBtn {
+  grid-column: 3;
+  justify-self: end;
+}
+
 .title-row h1 {
   grid-column: 2;
   margin: 0;
@@ -101,12 +106,6 @@ html:has(body.embedded) {
   line-height: 1.05;
   letter-spacing: -0.02em;
   text-align: center;
-}
-
-.title-row__spacer {
-  grid-column: 3;
-  width: 34px;
-  height: 1px;
 }
 
 .share-btn {

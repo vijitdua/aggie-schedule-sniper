@@ -95,6 +95,25 @@
 
   api.renderApp = renderApp;
 
+  const extensionOrigin = new URL(chrome.runtime.getURL("/")).origin;
+
+  function handleShowOnboardingRequest() {
+    if (window.self !== window.top) {
+      return;
+    }
+    api.showOnboardingModal?.();
+  }
+
+  window.addEventListener("message", (event) => {
+    if (event.data?.type !== "ASS_SHOW_ONBOARDING") {
+      return;
+    }
+    if (event.origin !== extensionOrigin) {
+      return;
+    }
+    handleShowOnboardingRequest();
+  });
+
   function bootstrap() {
     if (!shouldRunContentScriptInThisFrame()) {
       snipeLog("[startup]", {

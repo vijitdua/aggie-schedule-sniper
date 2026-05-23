@@ -5,6 +5,7 @@ const sniperToggle = document.getElementById("sniperToggle");
 const countdownToggle = document.getElementById("countToggle");
 const modeBadge = document.getElementById("modeBadge");
 const shareBtn = document.getElementById("shareBtn");
+const infoBtn = document.getElementById("infoBtn");
 const copyDebugBtn = document.getElementById("copyDebugBtn");
 const popupVersion = document.getElementById("popupVersion");
 const snackbar = document.getElementById("snackbar");
@@ -48,9 +49,40 @@ function initializePopup() {
     void shareLink();
   });
 
+  infoBtn.addEventListener("click", () => {
+    void showOnboarding();
+  });
+
   copyDebugBtn.addEventListener("click", () => {
     void copyDebugLogsFromPage();
   });
+}
+
+async function showOnboarding() {
+  if (isEmbedded && window.parent !== window) {
+    window.parent.postMessage({ type: "ASS_SHOW_ONBOARDING" }, "*");
+    return;
+  }
+
+  try {
+    const tabs = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    const tab = tabs[0];
+    if (!tab?.id) {
+      showSnackbar("No active tab", "error");
+      return;
+    }
+    const res = await chrome.tabs.sendMessage(tab.id, {
+      type: "ASS_SHOW_ONBOARDING",
+    });
+    if (!res?.ok) {
+      showSnackbar("Open Schedule Builder on this tab, then try again", "error");
+    }
+  } catch {
+    showSnackbar("Open Schedule Builder on this tab, then try again", "error");
+  }
 }
 
 async function shareLink() {

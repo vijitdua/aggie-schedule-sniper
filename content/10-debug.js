@@ -159,6 +159,17 @@
       }, 120);
       return true;
     }
+
+    if (message?.type === "ASS_SHOW_ONBOARDING") {
+      if (window.self !== window.top) {
+        sendResponse({ ok: false });
+        return false;
+      }
+      window.ASS?.api?.showOnboardingModal?.();
+      sendResponse({ ok: true });
+      return false;
+    }
+
     return false;
   });
 
