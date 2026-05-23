@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "Aggie Schedule Sniper",
+  "short_name": "Aggie Sniper",
+  "version": "2.1.0",
+  "description": "Automatic course registration and pass-time countdown for UC Davis students. Built by - vijitdua.com.",
+  "author": "Vijit Dua",
+  "homepage_url": "https://github.com/vijitdua/aggie-schedule-sniper",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Aggie Schedule Sniper"
+  },
+  "icons": {
+    "128": "128.png"
+  },
+  "permissions": [
+    "storage",
+    "clipboardWrite"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://my.ucdavis.edu/schedulebuilder/*",
+        "https://schedulebuilder.ucdavis.edu/*"
+      ],
+      "js": [
+        "branding/official.js",
+        "content/00-namespace.js",
+        "content/10-debug.js",
+        "content/20-pass-times.js",
+        "content/30-registration.js",
+        "content/ui/styles.js",
+        "content/40-overlay-ui.js",
+        "content/45-onboarding.js",
+        "content/50-bootstrap.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "128.png",
+        "popup.html",
+        "popup.css",
+        "popup.js",
+        "branding/official.js",
+        "shared/clipboard.js"
+      ],
+      "matches": [
+        "https://my.ucdavis.edu/*",
+        "https://schedulebuilder.ucdavis.edu/*"
+      ]
+    }
+  ]
+}

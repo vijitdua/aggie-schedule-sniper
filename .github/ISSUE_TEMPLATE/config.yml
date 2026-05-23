@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support (non-code questions)
+    url: https://vijitdua.com/support
+    about: Help, account questions, or general feedback — not GitHub issues.
+  - name: Security
+    url: https://vijitdua.com/open-source/security
+    about: Report security issues per the security policy.
+  - name: Contributing guide
+    url: https://vijitdua.com/open-source/contributing
+    about: Full contribution policy, issue/PR templates, and expectations.
+  - name: Open-source hub
+    url: https://vijitdua.com/open-source
+    about: Projects actively accepting contributions.

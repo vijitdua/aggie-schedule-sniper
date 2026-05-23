@@ -1,0 +1,9 @@
+Aggie Schedule Sniper
+
+Copyright (c) 2026 Vijit Dua
+
+Licensed under the MIT License. See [LICENSE](LICENSE).
+
+Official product branding (footer links, share URL, debug log prefix) lives in
+[`branding/official.js`](branding/official.js). Forks must replace that file;
+see [TRADEMARK.md](TRADEMARK.md).

@@ -1,0 +1,79 @@
+name: Bug report
+description: Report a bug in Aggie Schedule Sniper (code / technical)
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    value: |
+      **Policy:** [Contributing · Open Source](https://vijitdua.com/open-source/contributing) · [Issue template (site)](https://vijitdua.com/open-source/contributing?template=issue)
+
+      - One problem per issue. Include reproduction steps when you can.
+      - **Not code / personal help?** Use [support](https://vijitdua.com/support).
+      - **Security vulnerability?** See [security policy](https://vijitdua.com/open-source/security) — do not submit a public github issue for serious issues.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug clearly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Include Schedule Builder URL if relevant (e.g. my.ucdavis.edu or schedulebuilder.ucdavis.edu).
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What you saw instead of the expected result.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      description: Shown at the bottom of the extension popup (e.g. v2.1.0).
+      placeholder: e.g. v2.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: e.g. Chrome 124, macOS 15
+    validations:
+      required: true
+
+  - type: markdown
+    value: |
+      ### Debug logs (strongly recommended)
+
+      1. Open **Schedule Builder** on the tab where the bug happened.
+      2. Open the extension popup (toolbar icon) **or** click **Aggie Sniper ⚙** on the page → settings panel.
+      3. Click **⚙️ Copy debug logs** in the footer.
+      4. Paste the copied text into the field below (redact anything sensitive if needed).
+
+  - type: textarea
+    id: debug_logs
+    attributes:
+      label: Debug logs
+      description: Paste output from "Copy debug logs". Leave blank only if you could not reproduce on Schedule Builder.
+      placeholder: Paste debug log export here…
+      render: shell
+    validations:
+      required: false
