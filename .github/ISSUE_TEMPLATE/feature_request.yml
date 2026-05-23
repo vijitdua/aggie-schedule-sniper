@@ -4,11 +4,12 @@ title: "[Feature]: "
 labels: ["enhancement"]
 body:
   - type: markdown
-    value: |
-      **Policy:** [Contributing · Open Source](https://vijitdua.com/open-source/contributing)
+    attributes:
+      value: |
+        **Policy:** [Contributing · Open Source](https://vijitdua.com/open-source/contributing)
 
-      - One idea per issue. Search existing issues first.
-      - **Not a repo feature?** Use [support](https://vijitdua.com/support) for general feedback.
+        - One idea per issue. Search existing issues first.
+        - **Not a repo feature?** Use [support](https://vijitdua.com/support) for general feedback.
 
   - type: textarea
     id: summary

@@ -4,12 +4,13 @@ title: "[Bug]: "
 labels: ["bug"]
 body:
   - type: markdown
-    value: |
-      **Policy:** [Contributing · Open Source](https://vijitdua.com/open-source/contributing) · [Issue template (site)](https://vijitdua.com/open-source/contributing?template=issue)
+    attributes:
+      value: |
+        **Policy:** [Contributing · Open Source](https://vijitdua.com/open-source/contributing) · [Issue template (site)](https://vijitdua.com/open-source/contributing?template=issue)
 
-      - One problem per issue. Include reproduction steps when you can.
-      - **Not code / personal help?** Use [support](https://vijitdua.com/support).
-      - **Security vulnerability?** See [security policy](https://vijitdua.com/open-source/security) — do not submit a public github issue for serious issues.
+        - One problem per issue. Include reproduction steps when you can.
+        - **Not code / personal help?** Use [support](https://vijitdua.com/support).
+        - **Security vulnerability?** See [security policy](https://vijitdua.com/open-source/security) — do not submit a public github issue for serious issues.
 
   - type: textarea
     id: description
@@ -60,13 +61,14 @@ body:
       required: true
 
   - type: markdown
-    value: |
-      ### Debug logs (strongly recommended)
+    attributes:
+      value: |
+        ### Debug logs (strongly recommended)
 
-      1. Open **Schedule Builder** on the tab where the bug happened.
-      2. Open the extension popup (toolbar icon) **or** click **Aggie Sniper ⚙** on the page → settings panel.
-      3. Click **⚙️ Copy debug logs** in the footer.
-      4. Paste the copied text into the field below (redact anything sensitive if needed).
+        1. Open **Schedule Builder** on the tab where the bug happened.
+        2. Open the extension popup (toolbar icon) **or** click **Aggie Sniper ⚙** on the page → settings panel.
+        3. Click **⚙️ Copy debug logs** in the footer.
+        4. Paste the copied text into the field below (redact anything sensitive if needed).
 
   - type: textarea
     id: debug_logs
