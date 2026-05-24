@@ -7,5 +7,5 @@ window.ASS_BRANDING = {
   debugPrefix: "🎯 ass.vijit.app",
   homepageUrl: "https://vijit.app",
   repositoryUrl: "https://github.com/vijitdua/aggie-schedule-sniper",
-  contributeUrl: "https://vijitdua.com/open-source/contributing",
+  contributeUrl: "https://vijitdua.com/open-source",
 };

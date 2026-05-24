@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Aggie Schedule Sniper",
   "short_name": "Aggie Sniper",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Automatic course registration and pass-time countdown for UC Davis students. Built by - vijitdua.com.",
   "author": "Vijit Dua",
   "homepage_url": "https://github.com/vijitdua/aggie-schedule-sniper",

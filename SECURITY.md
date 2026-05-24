@@ -25,7 +25,7 @@ These belong elsewhere:
 
 | Situation | Where |
 |-----------|--------|
-| Broken button, wrong countdown, registration heuristic | [Bug report](.github/ISSUE_TEMPLATE/bug_report.yml) or [contributing](https://vijitdua.com/open-source/contributing) |
+| Broken button, wrong countdown, registration heuristic | [Bug report](.github/ISSUE_TEMPLATE/bug_report.yml) or [contributing](https://vijitdua.com/open-source/contributing) or [support](https://vijitdua.com/support) |
 | General feedback, not a vulnerability | [support](https://vijitdua.com/support) |
 | Feature ideas | [Feature request](.github/ISSUE_TEMPLATE/feature_request.yml) |
 

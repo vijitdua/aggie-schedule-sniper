@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-05-23
+
+### Changed
+
+- Open-source links now point to [vijitdua.com/open-source](https://vijitdua.com/open-source) instead of contribution guideline path.
+
 ## [2.2.0] - 2026-05-23
 
 ### Added
