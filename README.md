@@ -47,7 +47,7 @@ Listed on [vijitdua.com/open-source](https://vijitdua.com/open-source). See [CON
 | Need | Where |
 |------|--------|
 | Bug / feature (repo work) | GitHub issues — include **debug logs** from popup **⚙️ Copy debug logs** when reporting bugs |
-| Personal help / feedback | [support](https://vijitdua.com/support) |
+| Personal help / feedback | [support](https://vijitdua.com/support/ass) |
 | Security | [Security policy](https://vijitdua.com/open-source/security) |
 | Templates | [Issue](https://vijitdua.com/open-source/contributing?template=issue) · [PR](https://vijitdua.com/open-source/contributing?template=pr) |
 
@@ -72,6 +72,6 @@ This project is [MIT licensed](LICENSE). If you ship a modified build, you **mus
 
 - Extension: https://ass.vijit.app
 - Author: https://vijitdua.com
-- Support: https://vijitdua.com/support
+- Support: https://vijitdua.com/support/ass
 - Contribute: https://vijitdua.com/open-source/contributing
 - Security: https://vijitdua.com/open-source/security

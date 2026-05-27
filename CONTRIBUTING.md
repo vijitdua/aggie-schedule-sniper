@@ -14,7 +14,7 @@ Canonical policy (templates, expectations, when to use GitHub):
 
 - This project is listed on [/open-source](https://vijitdua.com/open-source).
 - **Bug or feature for the repo?** Open a GitHub issue (or PR). Use the templates here or on the site.
-- **Not contributing code?** Personal help, “this feels off,” account questions → [support](https://vijitdua.com/support), not GitHub.
+- **Not contributing code?** Personal help, “this feels off,” account questions → [support](https://vijitdua.com/support/ass), not GitHub.
 - **Security issue?** [Security policy](https://vijitdua.com/open-source/security). Serious issues: contact privately before posting details publicly.
 - Keep PRs small. Prefer branch/title like `42-short-name` when an issue exists.
 - Read [LICENSE](LICENSE). Major work may appear on [/contributions](https://vijitdua.com/contributions) at my discretion.

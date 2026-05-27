@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.2.2] - 2026-05-26
+
+### Changed
+
+- Support links now point to the app-specific page [vijitdua.com/support/ass](https://vijitdua.com/support/ass).
+
 ## [2.2.1] - 2026-05-23
 
 ### Changed

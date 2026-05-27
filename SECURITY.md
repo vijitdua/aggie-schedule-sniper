@@ -13,7 +13,7 @@ Full policy: [Security · Open Source](https://vijitdua.com/open-source/security
 
 If accounts, data, or production systems are at risk:
 
-1. Contact me **privately** first: [support](https://vijitdua.com/support) or **support@vijitdua.com**
+1. Contact me **privately** first: [support](https://vijitdua.com/support/ass) or **support@vijitdua.com**
 2. Do **not** post exploit steps, tokens, or user data in a public GitHub issue.
 3. Give reasonable time to fix before public disclosure.
 
@@ -25,8 +25,8 @@ These belong elsewhere:
 
 | Situation | Where |
 |-----------|--------|
-| Broken button, wrong countdown, registration heuristic | [Bug report](.github/ISSUE_TEMPLATE/bug_report.yml) or [contributing](https://vijitdua.com/open-source/contributing) or [support](https://vijitdua.com/support) |
-| General feedback, not a vulnerability | [support](https://vijitdua.com/support) |
+| Broken button, wrong countdown, registration heuristic | [Bug report](.github/ISSUE_TEMPLATE/bug_report.yml) or [contributing](https://vijitdua.com/open-source/contributing) or [support](https://vijitdua.com/support/ass) |
+| General feedback, not a vulnerability | [support](https://vijitdua.com/support/ass) |
 | Feature ideas | [Feature request](.github/ISSUE_TEMPLATE/feature_request.yml) |
 
 ## Credit
