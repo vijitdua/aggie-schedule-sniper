@@ -7,11 +7,12 @@
   let wakeLockSentinel = null;
   let beforeUnloadHandler = null;
   let sessionGuardActive = false;
-  let expiryWarningLogged = false;
   let closeWarningActive = false;
   let wakeLockHeld = false;
   let reloadIntent = false;
   let reloadIntentTimer = null;
+  let sessionModalWasVisible = false;
+  let lastSessionModalClickAtMs = 0;
 
   if (window.self === guardWindow) {
     document.addEventListener(
@@ -46,33 +47,47 @@
     );
   }
 
-  function detectSessionExpiryWarning() {
-    const signals = {
-      visibleContinueSession: [...document.querySelectorAll("button")].some(
-        (btn) =>
-          btn.textContent.trim() === config.sessionExpiryWarningButtonText &&
-          btn.offsetParent !== null,
-      ),
-      stuckOnCasLogin:
-        location.hostname === config.sessionCasLoginHost &&
-        location.pathname.includes("/cas/login"),
-      passTimesContainerMissing:
-        !state.simulatedPassTimeMs &&
-        !document.getElementById("PassTimesContainer"),
-    };
-    const warning = Object.values(signals).some(Boolean);
-    state.sessionExpiryWarning = warning;
-
-    if (warning === expiryWarningLogged) {
-      return warning;
+  function findContinueSessionButton() {
+    for (const el of document.querySelectorAll(
+      config.sessionContinueButtonSelector,
+    )) {
+      const text = (el.textContent || el.value || "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!config.sessionContinueButtonTextRegex.test(text) || el.disabled) {
+        continue;
+      }
+      const { width, height } = el.getBoundingClientRect();
+      if (width > 0 && height > 0) {
+        return el;
+      }
     }
-    expiryWarningLogged = warning;
-    snipeLog("[session_expiry_warning]", {
-      action: warning ? "detected" : "cleared",
-      ...signals,
-      href: location.href,
-    });
-    return warning;
+    return null;
+  }
+
+  /** If the UC Davis session modal is open, show a warning and click Continue Session. */
+  function handleSessionExpiryModal(armed) {
+    const button = findContinueSessionButton();
+    const visible = !!button;
+    state.sessionExpiryWarning = visible;
+
+    if (visible !== sessionModalWasVisible) {
+      sessionModalWasVisible = visible;
+      snipeLog("[session_expiry_warning]", { visible, href: location.href });
+    }
+
+    if (!visible || !armed || !state.settings.keepSessionAlive) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastSessionModalClickAtMs < config.sessionContinueClickCooldownMs) {
+      return;
+    }
+
+    lastSessionModalClickAtMs = now;
+    snipeLog("[session_continue]", { action: "click" });
+    button.click();
   }
 
   async function fetchKeepaliveStatus(url, init) {
@@ -119,6 +134,7 @@
 
     state.lastSessionKeepaliveAtMs = Date.now();
     snipeLog("[session_keepalive]", results);
+    handleSessionExpiryModal(sessionGuardActive);
   }
 
   function catchUpSessionKeepaliveIfNeeded() {
@@ -260,7 +276,7 @@
       return;
     }
 
-    detectSessionExpiryWarning();
+    handleSessionExpiryModal(armed);
     syncCloseWarning();
 
     if (armed !== sessionGuardActive) {
@@ -310,7 +326,6 @@
 
   Object.assign(api, {
     isSnipingArmed,
-    detectSessionExpiryWarning,
     runSessionKeepalivePulse,
     catchUpSessionKeepaliveIfNeeded,
     syncSessionGuard,

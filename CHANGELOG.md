@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.2.4] - 2026-05-28
+
+### Fixed
+
+- **Keep me logged in** now auto-clicks the UC Davis **Continue Session** modal when it appears.
+- Session expiry warning no longer false-alarms on the term-picker page (only triggers when that modal is actually visible).
+
+### Changed
+
+- Session keep-alive modal handling simplified: detect visible **Continue Session** button, warn, and click.
+
 ## [2.2.3] - 2026-05-28
 
 ### Changed

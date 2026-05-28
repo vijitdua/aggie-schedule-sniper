@@ -33,8 +33,10 @@
       sessionKeepaliveCatchUpMs: 12 * 60 * 1000,
       sessionBkgEndpoint: "/grid1/api/bkg/index.cfm",
       sessionBkgPayload: "loadBkg=true",
-      sessionExpiryWarningButtonText: "Continue Session",
-      sessionCasLoginHost: "cas.ucdavis.edu",
+      sessionContinueButtonSelector:
+        "button, a, input[type='button'], input[type='submit']",
+      sessionContinueButtonTextRegex: /^continue\s+session$/i,
+      sessionContinueClickCooldownMs: 3000,
       sessionCloseWarningMessage:
         "Aggie Schedule Sniper — are you sure you want to close Schedule Builder? You won't be auto-registered.",
       clickRetryBackoffMs: [250, 500, 1000, 2000, 3000],

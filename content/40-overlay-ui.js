@@ -125,7 +125,9 @@
 
     if (state.sessionExpiryWarning) {
       applyStatusChipStyle(
-        "Please sign in again — session may have expired.",
+        state.settings.keepSessionAlive
+          ? "Session expiring — clicking Continue Session…"
+          : "Please sign in again — session may have expired.",
         "danger",
       );
       if (targetPass && shouldShowCountdown) {
