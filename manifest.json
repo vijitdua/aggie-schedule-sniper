@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Aggie Schedule Sniper",
+  "name": "Aggie Schedule Sniper – UC Davis Schedule Builder Automatic Course Registration & Calendar Export",
   "short_name": "Aggie Sniper",
-  "version": "2.2.4",
-  "description": "Automatic course registration and pass-time countdown for UC Davis students. Built by - vijitdua.com.",
+  "version": "2.3.0",
+  "description": "Automatic course registeration, pass-time countdown, & calendar export for UC Davis Schedule Builder. Built by - vijitdua.com",
   "author": "Vijit Dua",
-  "homepage_url": "https://github.com/vijitdua/aggie-schedule-sniper",
+  "homepage_url": "https://vijit.app",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Aggie Schedule Sniper"
@@ -17,6 +17,12 @@
     "storage",
     "clipboardWrite"
   ],
+  "host_permissions": [
+    "https://registrar.ucdavis.edu/*"
+  ],
+  "background": {
+    "service_worker": "background/quarter-calendar.js"
+  },
   "content_scripts": [
     {
       "matches": [
@@ -25,11 +31,18 @@
       ],
       "js": [
         "branding/official.js",
+        "shared/config-schema.js",
+        "shared/extension-context.js",
         "content/00-namespace.js",
+        "content/05-config.js",
         "content/10-debug.js",
         "content/20-pass-times.js",
         "content/30-registration.js",
         "content/35-session-keepalive.js",
+        "shared/ics.js",
+        "content/25-schedule-parse.js",
+        "content/26-quarter-dates.js",
+        "content/55-calendar-export.js",
         "content/ui/styles.js",
         "content/40-overlay-ui.js",
         "content/45-onboarding.js",
@@ -47,7 +60,9 @@
         "popup.css",
         "popup.js",
         "branding/official.js",
-        "shared/clipboard.js"
+        "shared/clipboard.js",
+        "shared/config-schema.js",
+        "shared/ics.js"
       ],
       "matches": [
         "https://my.ucdavis.edu/*",

@@ -3,7 +3,7 @@
   const { config, ui, api } = ASS;
 
   const CARD_STYLE = [
-    "max-width:360px",
+    "max-width:392px",
     "width:100%",
     "background:#fff",
     "border-radius:16px",
@@ -249,25 +249,19 @@
 
     const list = api.createStyledElement(
       "ul",
-      "margin:0 auto 16px;padding:0;list-style:none;max-width:320px;",
+      "margin:0 auto 16px;padding:0;list-style:none;max-width:348px;",
     );
 
     const item1 = listItem();
-    item1.append(
-      "Automatically registers you for your classes during pass times to save you from waitlists in competitive courses",
-    );
+    item1.append("Automatic class registration during pass times");
     list.appendChild(item1);
 
     const item2 = listItem();
-    item2.append(
-      "Keep your laptop on, and schedule builder open for this to work",
-    );
+    item2.append("Saves you from waitlists in competitive courses");
     list.appendChild(item2);
 
     const item3 = listItem();
-    item3.append(
-      "UC Davis logs you out after a few hours of inactivity. We try to keep you logged in, but refresh and login a few minutes before your passtime to be safe.",
-    );
+    item3.append("Exports your schedule to your calendar");
     list.appendChild(item3);
 
     const item4 = listItem();
@@ -280,6 +274,12 @@
       "display:inline-block;width:18px;height:18px;margin:0 4px -2px;border-radius:4px;vertical-align:middle;object-fit:cover;";
     item4.append("Click ", settingsIcon, " to change your settings");
     list.appendChild(item4);
+
+    const disclaimer = api.createStyledElement(
+      "p",
+      "margin:0 auto 14px;max-width:348px;font-size:11px;line-height:1.5;font-style:italic;text-align:center;color:#94a3b8;",
+      "Aggie Schedule Sniper's automatic registeration requires your device to stay awake and your browser to have schedule builder open and logged in for it to work",
+    );
 
     const builtBy = api.createStyledElement(
       "p",
@@ -323,7 +323,7 @@
       });
     });
 
-    card.append(shareBtn, logo, title, tagline, list, builtBy, toast, continueBtn);
+    card.append(shareBtn, logo, title, tagline, list, disclaimer, builtBy, toast, continueBtn);
     backdrop.appendChild(card);
     backdrop.addEventListener("click", (e) => {
       if (e.target === backdrop) {

@@ -9,7 +9,7 @@
 </head>
 
 <body>
-  <main class="popup-shell">
+  <main class="popup-shell" id="mainShell">
     <header class="title-row">
       <button type="button" class="share-btn" id="shareBtn" aria-label="Share Aggie Schedule Sniper" title="Share">
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -64,6 +64,13 @@
       </section>
     </div>
 
+    <section class="export-section">
+      <button type="button" class="export-calendar-btn" id="exportCalendarBtn">
+        <img src="128.png" alt="" width="18" height="18" class="export-calendar-btn__icon" />
+        Export calendar
+      </button>
+    </section>
+
     <div id="modeBadge" class="mode-badge" aria-live="polite"></div>
 
     <footer class="popup-footer">
@@ -99,29 +106,114 @@
         </a>
       </section>
 
-      <p class="footer-meta">
+      <p class="footer-meta footer-meta--primary">
         <a class="footer-meta__link footer-meta__built" href="https://vijitdua.com" target="_blank"
           rel="noopener noreferrer">Built by Vijit Dua</a>
         <span class="footer-meta__sep" aria-hidden="true">·</span>
         <a class="footer-meta__link" href="https://vijit.app" target="_blank" rel="noopener noreferrer">More Apps</a>
         <span class="footer-meta__sep" aria-hidden="true">·</span>
-        <a class="footer-meta__link" href="https://vijitdua.com/open-source" target="_blank"
-          rel="noopener noreferrer">Contributors</a>
-      </p>
-      <p class="footer-meta">
         <a class="footer-meta__link" href="https://vijitdua.com/support/ass" target="_blank"
-          rel="noopener noreferrer">Get Help / Support</a>
+          rel="noopener noreferrer">Help / Support</a>
+      </p>
+      <p class="footer-meta footer-meta--secondary">
+        <a class="footer-meta__link" href="https://github.com/vijitdua/aggie-schedule-sniper" target="_blank"
+          rel="noopener noreferrer">Open-source code</a>
+        <span class="footer-meta__sep" aria-hidden="true">·</span>
+        <a class="footer-meta__link" href="https://vijitdua.com/contributions" target="_blank"
+          rel="noopener noreferrer">Contributors</a>
         <span class="footer-meta__sep" aria-hidden="true">·</span>
         <button type="button" class="footer-meta__link footer-debug-btn" id="copyDebugBtn">⚙️ Copy debug logs</button>
       </p>
-      <p class="popup-version" id="popupVersion" aria-label="Extension version"></p>
+      <span class="version-wrap" tabindex="0" aria-describedby="versionDevTip">
+        <span class="popup-version" id="popupVersion" aria-label="Extension version"></span>
+        <span class="setting-tooltip setting-tooltip--version" id="versionDevTip" role="tooltip">Triple click to open developer menu</span>
+      </span>
     </footer>
+  </main>
+
+  <main class="dev-shell" id="devShell" hidden>
+    <header class="dev-header">
+      <div>
+        <h1 class="dev-title">Advanced / Developer Menu</h1>
+        <p class="dev-subtitle">Override parsers, timings, and registrar settings.</p>
+      </div>
+      <button type="button" class="dev-close-btn" id="closeDevBtn">Close</button>
+    </header>
+
+    <section class="dev-warning" role="alert" aria-labelledby="devWarningTitle">
+      <h2 class="dev-warning__title" id="devWarningTitle">Warning — proceed with caution</h2>
+      <p class="dev-warning__text">
+        This menu is for developers who know what they&rsquo;re doing. Changing these settings can
+        easily break registration, calendar export, session keepalive, or other features.
+      </p>
+      <p class="dev-warning__text">
+        Aggie Schedule Sniper is open source —
+        <a class="dev-warning__link" href="https://github.com/vijitdua/aggie-schedule-sniper/" target="_blank"
+          rel="noopener noreferrer">view the source on GitHub</a>
+        if you want to understand an option before changing it.
+      </p>
+      <p class="dev-warning__text dev-warning__text--last">
+        If something stops working after you edit overrides, reset everything back to the defaults.
+      </p>
+      <button type="button" id="resetAdvancedTopBtn" class="dev-warning__reset">Reset overrides to default</button>
+    </section>
+
+    <section class="dev-user-settings" id="devUserSettings">
+      <div class="dev-group-header">
+        <h2 class="dev-group-title">Extension toggles</h2>
+        <p class="dev-group-desc">Same settings as the main popup. Stored in sync and applied to Schedule Builder immediately.</p>
+      </div>
+      <div class="dev-toggle-grid">
+        <label class="dev-toggle-row">
+          <span class="switch">
+            <input type="checkbox" id="devAutoRegisterToggle" />
+            <span class="slider"></span>
+          </span>
+          <span class="dev-toggle-label-wrap" tabindex="0" aria-describedby="devAutoRegisterTip">
+            <span class="dev-toggle-label">Automatically hit "Register ALL"</span>
+            <span class="setting-tooltip dev-field-tooltip" id="devAutoRegisterTip" role="tooltip">Clicks Register ALL when your pass time hits. Also works for 4 hours after your pass-time for any unregistered courses.</span>
+          </span>
+        </label>
+        <label class="dev-toggle-row">
+          <span class="switch">
+            <input type="checkbox" id="devShowCountdownToggle" />
+            <span class="slider"></span>
+          </span>
+          <span class="dev-toggle-label-wrap" tabindex="0" aria-describedby="devCountdownTip">
+            <span class="dev-toggle-label">Show pass-time countdown</span>
+            <span class="setting-tooltip dev-field-tooltip" id="devCountdownTip" role="tooltip">Shows a countdown on Schedule Builder until your pass time.</span>
+          </span>
+        </label>
+        <label class="dev-toggle-row">
+          <span class="switch">
+            <input type="checkbox" id="devKeepLoggedInToggle" />
+            <span class="slider"></span>
+          </span>
+          <span class="dev-toggle-label-wrap" tabindex="0" aria-describedby="devKeepLoggedInTip">
+            <span class="dev-toggle-label">Keep me logged in</span>
+            <span class="setting-tooltip dev-field-tooltip" id="devKeepLoggedInTip" role="tooltip">Attempts to keep you logged in even when idle. UC Davis may still sign you out after a few hours.</span>
+          </span>
+        </label>
+      </div>
+    </section>
+
+    <section class="dev-overrides-intro">
+      <h2 class="dev-group-title">Advanced overrides</h2>
+      <p class="dev-group-desc">Technical defaults for parsers and timings on Schedule Builder. Leave a field at its default unless debugging. Stored locally — not synced across devices.</p>
+    </section>
+    <section class="advanced-panel advanced-panel--full">
+      <div id="advancedFields" class="dev-config-groups"></div>
+      <div class="advanced-actions">
+        <button type="button" id="resetAdvancedBtn" class="advanced-btn advanced-btn--danger">Reset overrides to default</button>
+      </div>
+    </section>
   </main>
 
   <div id="snackbar" class="snackbar" role="status" aria-live="polite" hidden></div>
 
   <script src="branding/official.js"></script>
   <script src="shared/clipboard.js"></script>
+  <script src="shared/config-schema.js"></script>
   <script src="popup.js"></script>
 </body>
 

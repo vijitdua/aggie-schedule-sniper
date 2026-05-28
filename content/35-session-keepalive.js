@@ -5,36 +5,10 @@
   const guardWindow = window.top;
   let keepaliveTimerId = null;
   let wakeLockSentinel = null;
-  let beforeUnloadHandler = null;
   let sessionGuardActive = false;
-  let closeWarningActive = false;
   let wakeLockHeld = false;
-  let reloadIntent = false;
-  let reloadIntentTimer = null;
   let sessionModalWasVisible = false;
   let lastSessionModalClickAtMs = 0;
-
-  if (window.self === guardWindow) {
-    document.addEventListener(
-      "keydown",
-      (event) => {
-        const isReload =
-          event.key === "F5" ||
-          ((event.ctrlKey || event.metaKey) &&
-            event.key.toLowerCase() === "r");
-        if (!isReload) {
-          return;
-        }
-        reloadIntent = true;
-        clearTimeout(reloadIntentTimer);
-        reloadIntentTimer = setTimeout(() => {
-          reloadIntent = false;
-          reloadIntentTimer = null;
-        }, 2000);
-      },
-      true,
-    );
-  }
 
   function isSnipingArmed(passTimes) {
     if (state.simulatedPassTimeMs) {
@@ -225,59 +199,12 @@
     }
   }
 
-  function shouldProtectTab() {
-    if (!state.settings.warnBeforeClose) {
-      return false;
-    }
-    if (state.simulatedPassTimeMs) {
-      return true;
-    }
-    const passTimes = api.getParsedPassTimes();
-    if (passTimes.length) {
-      return isSnipingArmed(passTimes);
-    }
-    try {
-      return !!guardWindow.document.getElementById("PassTimesContainer");
-    } catch {
-      return !!document.getElementById("PassTimesContainer");
-    }
-  }
-
-  function syncCloseWarning() {
-    const protect = shouldProtectTab();
-
-    if (protect && !beforeUnloadHandler) {
-      beforeUnloadHandler = (event) => {
-        if (reloadIntent) {
-          snipeLog("[session_close_warning]", { action: "skipped_reload" });
-          return;
-        }
-        snipeLog("[session_close_warning]", { action: "prompt" });
-        event.preventDefault();
-        event.returnValue = config.sessionCloseWarningMessage;
-        return config.sessionCloseWarningMessage;
-      };
-      guardWindow.addEventListener("beforeunload", beforeUnloadHandler);
-    } else if (!protect && beforeUnloadHandler) {
-      guardWindow.removeEventListener("beforeunload", beforeUnloadHandler);
-      beforeUnloadHandler = null;
-    }
-
-    if (protect !== closeWarningActive) {
-      closeWarningActive = protect;
-      snipeLog("[session_close_warning]", {
-        action: protect ? "enabled" : "disabled",
-      });
-    }
-  }
-
   function syncSessionGuard(armed) {
     if (window.self !== guardWindow) {
       return;
     }
 
     handleSessionExpiryModal(armed);
-    syncCloseWarning();
 
     if (armed !== sessionGuardActive) {
       sessionGuardActive = armed;
@@ -287,7 +214,6 @@
           ? {
               keepSessionAlive: state.settings.keepSessionAlive,
               keepScreenAwake: state.settings.keepScreenAwake,
-              warnBeforeClose: state.settings.warnBeforeClose,
             }
           : {}),
       });

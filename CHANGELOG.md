@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-05-28
+
+### Added
+
+- **Export calendar (.ics)** from Schedule Builder — registered and waitlisted courses only, with confirm preview before download.
+- Export buttons on Schedule Builder page, extension overlay, and popup.
+- Quarter dates auto-fetched from [registrar.ucdavis.edu/calendar/quarter](https://registrar.ucdavis.edu/calendar/quarter) (cached in background).
+- **Advanced / Developer Menu** — triple-click version in popup footer; override regexes, selectors, timings; reset to default.
+
+### Changed
+
+- Calendar event titles use `{code section}[W]: {course name}` format for waitlisted courses.
+
 ## [2.2.4] - 2026-05-28
 
 ### Fixed

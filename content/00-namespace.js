@@ -25,7 +25,7 @@
     branding,
     config: {
       embeddedPanelWidthPx: 340,
-      embeddedPanelHeightPx: 340,
+      embeddedPanelHeightPx: 420,
       renderIntervalMs: 500,
       passActiveWindowMs: 4 * 60 * 60 * 1000,
       passCacheTtlMs: 8000,
@@ -37,8 +37,6 @@
         "button, a, input[type='button'], input[type='submit']",
       sessionContinueButtonTextRegex: /^continue\s+session$/i,
       sessionContinueClickCooldownMs: 3000,
-      sessionCloseWarningMessage:
-        "Aggie Schedule Sniper — are you sure you want to close Schedule Builder? You won't be auto-registered.",
       clickRetryBackoffMs: [250, 500, 1000, 2000, 3000],
       passTimeRegex:
         /Pass\s*(\d+)\s*:\s*([A-Za-z]{3}\s+\d{1,2},\s+\d{4}\s+\d{1,2}:\d{2}\s*(AM|PM))/gi,
@@ -47,13 +45,15 @@
       registerButtonTextRegex: /\bregister\b/i,
       excludedButtonTextRegex: /pre-check/i,
       onboardingStorageKey: "assOnboardingDismissed",
+      scheduleCourseSelector:
+        "#SavedSchedulesListDisplayContainer article.CourseItem",
+      registrarCalendarUrl: "https://registrar.ucdavis.edu/calendar/quarter",
     },
     state: {
       settings: {
         autoRegister: true,
         showCountdown: true,
         keepSessionAlive: true,
-        warnBeforeClose: true,
         keepScreenAwake: true,
       },
       selectedPassId: null,
@@ -76,6 +76,8 @@
       countdownChip: null,
       statusChip: null,
       settingsPanel: null,
+      devPanel: null,
+      devBackdrop: null,
       backdrop: null,
       onboardingRoot: null,
     },

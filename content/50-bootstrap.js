@@ -50,7 +50,6 @@
       autoRegister: state.settings.autoRegister,
       showCountdown: state.settings.showCountdown,
       keepSessionAlive: state.settings.keepSessionAlive,
-      warnBeforeClose: state.settings.warnBeforeClose,
       keepScreenAwake: state.settings.keepScreenAwake,
       browserTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
@@ -61,7 +60,6 @@
       autoRegister: true,
       showCountdown: true,
       keepSessionAlive: true,
-      warnBeforeClose: true,
       keepScreenAwake: true,
     };
 
@@ -72,7 +70,6 @@
         state.settings.autoRegister = true;
         state.settings.showCountdown = true;
         state.settings.keepSessionAlive = true;
-        state.settings.warnBeforeClose = true;
         state.settings.keepScreenAwake = true;
 
         chrome.storage.sync.set(
@@ -80,7 +77,6 @@
             autoRegister: true,
             showCountdown: true,
             keepSessionAlive: true,
-            warnBeforeClose: true,
             keepScreenAwake: true,
           },
           () => {
@@ -93,7 +89,6 @@
       state.settings.autoRegister = !!storedValues.autoRegister;
       state.settings.showCountdown = !!storedValues.showCountdown;
       state.settings.keepSessionAlive = !!storedValues.keepSessionAlive;
-      state.settings.warnBeforeClose = !!storedValues.warnBeforeClose;
       state.settings.keepScreenAwake = !!storedValues.keepScreenAwake;
       onReady();
     });
@@ -109,6 +104,7 @@
     const activePass = api.getCurrentlyActivePass(passTimes);
     api.initializePassTrackingState(passTimes);
     void api.maybeAttemptAutoRegistration(activePass);
+    api.injectScheduleBuilderExportButton?.();
     api.renderOverlayUi(targetPass, activePass);
   }
 
@@ -124,13 +120,20 @@
   }
 
   window.addEventListener("message", (event) => {
-    if (event.data?.type !== "ASS_SHOW_ONBOARDING") {
-      return;
-    }
     if (event.origin !== extensionOrigin) {
       return;
     }
-    handleShowOnboardingRequest();
+    if (event.data?.type === "ASS_SHOW_ONBOARDING") {
+      handleShowOnboardingRequest();
+      return;
+    }
+    if (event.data?.type === "ASS_OPEN_DEV_MENU") {
+      api.openDeveloperPanel?.();
+      return;
+    }
+    if (event.data?.type === "ASS_CLOSE_DEV_MENU") {
+      api.closeDeveloperPanel?.();
+    }
   });
 
   function bootstrap() {
@@ -178,7 +181,6 @@
         Object.prototype.hasOwnProperty.call(changes, "autoRegister") ||
         Object.prototype.hasOwnProperty.call(changes, "showCountdown") ||
         Object.prototype.hasOwnProperty.call(changes, "keepSessionAlive") ||
-        Object.prototype.hasOwnProperty.call(changes, "warnBeforeClose") ||
         Object.prototype.hasOwnProperty.call(changes, "keepScreenAwake");
 
       if (changes.autoRegister) {
@@ -193,10 +195,6 @@
         state.settings.keepSessionAlive = !!changes.keepSessionAlive.newValue;
       }
 
-      if (changes.warnBeforeClose) {
-        state.settings.warnBeforeClose = !!changes.warnBeforeClose.newValue;
-      }
-
       if (changes.keepScreenAwake) {
         state.settings.keepScreenAwake = !!changes.keepScreenAwake.newValue;
       }
@@ -206,13 +204,11 @@
           autoRegister: state.settings.autoRegister,
           showCountdown: state.settings.showCountdown,
           keepSessionAlive: state.settings.keepSessionAlive,
-          warnBeforeClose: state.settings.warnBeforeClose,
           keepScreenAwake: state.settings.keepScreenAwake,
           fromStorage: {
             autoRegister: changes.autoRegister,
             showCountdown: changes.showCountdown,
             keepSessionAlive: changes.keepSessionAlive,
-            warnBeforeClose: changes.warnBeforeClose,
             keepScreenAwake: changes.keepScreenAwake,
           },
         });

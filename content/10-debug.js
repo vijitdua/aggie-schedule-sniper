@@ -3,6 +3,7 @@
   const DBG =
     ASS.branding.debugPrefix || ASS.branding.shareUrl || "Aggie Schedule Sniper";
   const DEBUG_LOG = ASS.debug;
+  const extensionOk = () => window.ASS_EXTENSION?.extensionOk?.() ?? true;
 
   function safeJsonForLog(value) {
     if (value === undefined) {
@@ -26,7 +27,7 @@
   }
 
   function scheduleDebugPersist() {
-    if (DEBUG_LOG.persistTimerId != null) {
+    if (!extensionOk() || DEBUG_LOG.persistTimerId != null) {
       return;
     }
     DEBUG_LOG.persistTimerId = setTimeout(() => {
@@ -36,6 +37,9 @@
   }
 
   function flushDebugLogsToStorage() {
+    if (!extensionOk()) {
+      return;
+    }
     const key = `${DEBUG_LOG.storageKeyPrefix}${DEBUG_LOG.instanceId}`;
     chrome.storage.local.set({
       [key]: {
@@ -59,6 +63,11 @@
       "Note: Page/app console output is not included (content script isolated world).",
       "=== log lines ===",
     ].join("\n");
+
+    if (!extensionOk()) {
+      done(`${header}\n${DEBUG_LOG.ring.join("\n")}`);
+      return;
+    }
 
     chrome.storage.local.get(null, (all) => {
       if (chrome.runtime.lastError) {
@@ -90,8 +99,14 @@
   }
 
   function hydrateDebugLogsFromStorage() {
+    if (!extensionOk()) {
+      return;
+    }
     const key = `${DEBUG_LOG.storageKeyPrefix}${DEBUG_LOG.instanceId}`;
     chrome.storage.local.get([key], (r) => {
+      if (chrome.runtime.lastError) {
+        return;
+      }
       const block = r?.[key];
       if (block?.lines?.length) {
         DEBUG_LOG.ring = block.lines.slice(-DEBUG_LOG.maxRing);
@@ -100,6 +115,9 @@
   }
 
   function pruneStaleDebugStorageKeys() {
+    if (!extensionOk()) {
+      return;
+    }
     const maxAgeMs = 48 * 60 * 60 * 1000;
     const cutoff = Date.now() - maxAgeMs;
     chrome.storage.local.get(null, (all) => {
@@ -166,6 +184,16 @@
         return false;
       }
       window.ASS?.api?.showOnboardingModal?.();
+      sendResponse({ ok: true });
+      return false;
+    }
+
+    if (message?.type === "ASS_OPEN_DEV_MENU") {
+      if (window.self !== window.top) {
+        sendResponse({ ok: false });
+        return false;
+      }
+      window.ASS?.api?.openDeveloperPanel?.();
       sendResponse({ ok: true });
       return false;
     }

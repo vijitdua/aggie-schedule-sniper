@@ -212,8 +212,71 @@
     }
   }
 
+  function closeDeveloperPanel() {
+    if (ui.devBackdrop) ui.devBackdrop.remove();
+    ui.devBackdrop = null;
+    ui.devPanel = null;
+    snipeLog("[ui]", { action: "close_developer_panel" });
+  }
+
+  function openDeveloperPanel() {
+    if (window.self !== window.top || ui.devPanel) {
+      return;
+    }
+
+    closeSettingsPanel();
+    snipeLog("[ui]", { action: "open_developer_panel" });
+
+    ui.devBackdrop = createStyledElement(
+      "div",
+      [
+        "position:fixed",
+        "inset:0",
+        "background:rgba(1,37,110,.4)",
+        "z-index:2147483647",
+        "display:flex",
+        "align-items:center",
+        "justify-content:center",
+        "padding:20px",
+        "box-sizing:border-box",
+      ].join(";"),
+    );
+    ui.devBackdrop.addEventListener("click", (event) => {
+      if (event.target === ui.devBackdrop) {
+        closeDeveloperPanel();
+      }
+    });
+
+    const panelWidth = Math.min(760, window.innerWidth - 40);
+    const panelHeight = Math.min(Math.round(window.innerHeight * 0.88), 820);
+
+    ui.devPanel = createStyledElement(
+      "div",
+      [
+        `width:${panelWidth}px`,
+        "max-width:100%",
+        `height:${panelHeight}px`,
+        "max-height:100%",
+        "background:#fff",
+        "border-radius:16px",
+        "box-shadow:0 24px 48px rgba(0,0,0,.22)",
+        "overflow:hidden",
+      ].join(";"),
+    );
+
+    const iframe = document.createElement("iframe");
+    iframe.src = chrome.runtime.getURL("popup.html?developer=1&embedded=1");
+    iframe.style.cssText = "display:block;width:100%;height:100%;border:0;";
+    ui.devPanel.appendChild(iframe);
+    ui.devBackdrop.appendChild(ui.devPanel);
+    document.body.appendChild(ui.devBackdrop);
+  }
+
   function ensureOverlayUi() {
     if (ui.root) {
+      ui.exportCalendarBtn?.remove();
+      ui.exportCalendarBtn = null;
+      api.injectScheduleBuilderExportButton?.();
       return;
     }
     ui.root = createStyledElement("div", styles.rootContainer);
@@ -229,8 +292,13 @@
     ui.countdownChip = createStyledElement("div", styles.chip);
     ui.statusChip = createStyledElement("div", styles.chip);
 
-    ui.root.append(ui.launcherButton, ui.countdownChip, ui.statusChip);
+    ui.root.append(
+      ui.launcherButton,
+      ui.countdownChip,
+      ui.statusChip,
+    );
     insertUiNearPassTimes(ui.root);
+    api.injectScheduleBuilderExportButton?.();
   }
 
   Object.assign(api, {
@@ -238,6 +306,9 @@
     renderOverlayUi,
     openSettingsPanel,
     closeSettingsPanel,
+    openDeveloperPanel,
+    closeDeveloperPanel,
     createStyledElement,
+    createLogoElement,
   });
 })();
