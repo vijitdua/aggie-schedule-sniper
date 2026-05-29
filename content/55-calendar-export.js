@@ -86,14 +86,6 @@
     });
   }
 
-  function dateToIsoInputValue(date) {
-    return [
-      date.getFullYear(),
-      String(date.getMonth() + 1).padStart(2, "0"),
-      String(date.getDate()).padStart(2, "0"),
-    ].join("-");
-  }
-
   function createQuarterDateField(labelText) {
     const field = api.createStyledElement("label", "display:block;margin:0 0 10px;");
     field.appendChild(
@@ -580,21 +572,6 @@
           }
         });
 
-        const saved = await api.readManualQuarterBounds(termName);
-        if (saved?.instructionBegins) {
-          const startDate = ICS.parseUsDate(saved.instructionBegins);
-          if (startDate) {
-            beginsInput.value = dateToIsoInputValue(startDate);
-            endsInput.min = beginsInput.value;
-          }
-        }
-        if (saved?.instructionEnds) {
-          const endDate = ICS.parseUsDate(saved.instructionEnds);
-          if (endDate) {
-            endsInput.value = dateToIsoInputValue(endDate);
-          }
-        }
-
         const actions = api.createStyledElement(
           "div",
           "display:flex;gap:10px;justify-content:flex-end;margin-top:14px;",
@@ -625,25 +602,21 @@
           if (beginsInput.value > endsInput.value) {
             return;
           }
-          void api.saveManualQuarterBounds(termName, instructionBegins, instructionEnds).then(
-            () => {
-              backdrop.remove();
-              snipeLog("[calendar_export]", {
-                action: "manual_bounds_used",
-                termName,
-                instructionBegins,
-                instructionEnds,
-              });
-              resolve({
-                ok: true,
-                termName,
-                source: "manual",
-                instructionBegins,
-                instructionEnds,
-                quarterEnds: instructionEnds,
-              });
-            },
-          );
+          backdrop.remove();
+          snipeLog("[calendar_export]", {
+            action: "manual_bounds_used",
+            termName,
+            instructionBegins,
+            instructionEnds,
+          });
+          resolve({
+            ok: true,
+            termName,
+            source: "manual",
+            instructionBegins,
+            instructionEnds,
+            quarterEnds: instructionEnds,
+          });
         });
 
         actions.append(cancelBtn, saveBtn);

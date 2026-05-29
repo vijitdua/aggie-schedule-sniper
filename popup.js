@@ -283,7 +283,7 @@ function buildAdvancedFields() {
         note.innerHTML = [
           "<p><strong>Why registrar?</strong> Weekly class events need instruction begin/end for RRULE recurrence.</p>",
           "<p><strong>Finals:</strong> Each course's final date comes from Schedule Builder (course card), not the registrar finals week row.</p>",
-          "<p><strong>Backup:</strong> If fetch/parse fails with no cache left, export prompts you to enter quarter dates manually.</p>",
+          "<p><strong>Backup:</strong> If fetch/parse fails with no cache left, export prompts for quarter dates on each export (not saved).</p>",
           "<p><strong>Testing failures:</strong> Refetch always hits the live URL. Export may still use cached dates until you clear the cache.</p>",
         ].join("");
         section.appendChild(note);
