@@ -6,9 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-05-29
+
 ### Added
 
 - RateMyProfessors reviews: toggle in popup and dev menu (default on); ASS-styled review card below instructor names in search and saved schedule, with color-coded rating stats.
+- Background RMP GraphQL lookup with 7-day local cache, deduplicated fetches, and dev **Clear RMP cache** action.
+- Onboarding bullet for RMP ratings; developer **Professor ratings** advanced config group.
+
+### Changed
+
+- Manifest version **3.0.0**; store `name` mentions RMP ratings.
+- Settings and onboarding backdrops use neutral **65%** black overlay.
+- Opening **How it works** from settings closes the settings panel first (no double overlay).
+- First-run onboarding dismisses only via **Continue**; manually opened onboarding can dismiss on backdrop click.
+
+### Fixed
+
+- RMP cache no longer wiped on every save (stopped refetch/flicker during deep search).
+- One lookup per professor name shared across all visible course sections.
 
 ## [2.3.3] - 2026-05-29
 
