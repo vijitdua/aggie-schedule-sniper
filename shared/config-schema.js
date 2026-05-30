@@ -33,6 +33,13 @@
     quarterRowFinalExamsRegex: "final examinations",
     quarterRowQuarterEndsRegex: "quarter ends",
     onboardingStorageKey: "assOnboardingDismissed_v2",
+    rmpSchoolId: "U2Nob29sLTEwNzM=",
+    rmpCacheTtlMs: 604800000,
+    rmpMaxConcurrentLookups: 5,
+    rmpSearchContainerSelector: "#inlineCourseResultsContainer",
+    rmpInstructorSelector:
+      "div.results-instructor a, article.course-container a[href^='mailto:']",
+    rmpSavedContainerSelector: "#SavedSchedulesListDisplayContainer",
   };
 
   const GROUPS = [
@@ -53,6 +60,12 @@
       title: "Calendar export",
       description:
         "Weekly .ics events repeat from instruction begin → instruction end (from the registrar table). Per-course final exams come from Schedule Builder course cards — not the registrar finals week range.",
+    },
+    {
+      id: "professor_ratings",
+      title: "Professor ratings",
+      description:
+        "RateMyProfessors lookup, caching, and DOM selectors for instructor names on Schedule Builder.",
     },
     {
       id: "ui",
@@ -221,6 +234,48 @@
       type: "string",
       group: "calendar",
       help: "Parsed for preview info only. Actual final events use per-course dates from Schedule Builder.",
+    },
+    {
+      key: "rmpSchoolId",
+      label: "RMP school ID",
+      type: "string",
+      group: "professor_ratings",
+      help: "GraphQL schoolID for UC Davis on RateMyProfessors.",
+    },
+    {
+      key: "rmpCacheTtlMs",
+      label: "RMP cache TTL (ms)",
+      type: "number",
+      group: "professor_ratings",
+      help: "How long professor lookups are cached locally before refetching.",
+    },
+    {
+      key: "rmpMaxConcurrentLookups",
+      label: "RMP max concurrent lookups",
+      type: "number",
+      group: "professor_ratings",
+      help: "Maximum parallel RateMyProfessors requests from Schedule Builder.",
+    },
+    {
+      key: "rmpSearchContainerSelector",
+      label: "Search results container",
+      type: "string",
+      group: "professor_ratings",
+      help: "Root element that holds inline course search results.",
+    },
+    {
+      key: "rmpInstructorSelector",
+      label: "Instructor link selector",
+      type: "string",
+      group: "professor_ratings",
+      help: "CSS selector for instructor name links in search results.",
+    },
+    {
+      key: "rmpSavedContainerSelector",
+      label: "Saved schedule container",
+      type: "string",
+      group: "professor_ratings",
+      help: "Root element for the saved schedule list.",
     },
     {
       key: "renderIntervalMs",

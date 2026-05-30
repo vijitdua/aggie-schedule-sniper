@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- RateMyProfessors reviews: toggle in popup and dev menu (default on); ASS-styled review card below instructor names in search and saved schedule, with color-coded rating stats.
+
 ## [2.3.3] - 2026-05-29
 
 ### Added

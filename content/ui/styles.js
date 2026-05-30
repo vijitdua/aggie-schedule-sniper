@@ -74,5 +74,21 @@
         boxShadow: "0 0 0 2px rgba(220,38,38,.18)",
       },
     },
+
+    professorRatingsBlock: [
+      "display:block",
+      "width:fit-content",
+      "max-width:min(100%,280px)",
+      "margin:8px 0 10px",
+      "padding:10px 12px",
+      "background:#fff",
+      "border:1px solid #e2e8f0",
+      "border-left:3px solid #ffbf00",
+      "border-radius:10px",
+      "box-shadow:0 4px 12px rgba(1,37,110,.08)",
+      "font:400 12px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",
+      "color:#64748b",
+      "line-height:1.45",
+    ].join(";"),
   };
 })();

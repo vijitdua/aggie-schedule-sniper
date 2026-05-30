@@ -1,4 +1,4 @@
-importScripts("../shared/config-schema.js");
+importScripts("../shared/config-schema.js", "./rmp.js");
 
 const CACHE_KEY = "assQuarterCalendarCache";
 const ADVANCED_KEY = "assAdvancedConfig";
@@ -212,6 +212,23 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     void (async () => {
       try {
         await clearCache();
+        sendResponse({ ok: true });
+      } catch (error) {
+        sendResponse({ ok: false, error: error?.message || String(error) });
+      }
+    })();
+    return true;
+  }
+
+  if (message?.type === "ASS_LOOKUP_PROFESSOR") {
+    void ASS_RMP.handleLookup(message, sendResponse, loadConfig);
+    return true;
+  }
+
+  if (message?.type === "ASS_CLEAR_RMP_CACHE") {
+    void (async () => {
+      try {
+        await chrome.storage.local.remove(["assRmpCache", "assRmpMiss"]);
         sendResponse({ ok: true });
       } catch (error) {
         sendResponse({ ok: false, error: error?.message || String(error) });

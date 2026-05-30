@@ -5,6 +5,7 @@ const ADVANCED_STORAGE_KEY = "assAdvancedConfig";
 const sniperToggle = document.getElementById("sniperToggle");
 const countdownToggle = document.getElementById("countToggle");
 const waitingHelpersToggle = document.getElementById("waitingHelpersToggle");
+const professorRatingsToggle = document.getElementById("professorRatingsToggle");
 const exportCalendarBtn = document.getElementById("exportCalendarBtn");
 const modeBadge = document.getElementById("modeBadge");
 const shareBtn = document.getElementById("shareBtn");
@@ -21,6 +22,7 @@ const resetAdvancedTopBtn = document.getElementById("resetAdvancedTopBtn");
 const devAutoRegisterToggle = document.getElementById("devAutoRegisterToggle");
 const devShowCountdownToggle = document.getElementById("devShowCountdownToggle");
 const devKeepLoggedInToggle = document.getElementById("devKeepLoggedInToggle");
+const devProfessorRatingsToggle = document.getElementById("devProfessorRatingsToggle");
 const isEmbedded = new URLSearchParams(location.search).get("embedded") === "1";
 const isDeveloperPage =
   new URLSearchParams(location.search).get("developer") === "1";
@@ -30,6 +32,7 @@ const DEFAULT_SETTINGS = {
   showCountdown: true,
   keepSessionAlive: true,
   keepScreenAwake: true,
+  showProfessorRatings: true,
 };
 
 let snackbarTimer = 0;
@@ -154,8 +157,31 @@ function clearRegistrarCalendarCache() {
   });
 }
 
+function clearRmpCache() {
+  if (!chrome.runtime?.id) {
+    showSnackbar("Reload the extension, then try again", "error");
+    return;
+  }
+  chrome.runtime.sendMessage({ type: "ASS_CLEAR_RMP_CACHE" }, (res) => {
+    if (chrome.runtime.lastError) {
+      showSnackbar(chrome.runtime.lastError.message, "error");
+      return;
+    }
+    if (res?.ok) {
+      showSnackbar("RMP cache cleared", "success");
+    } else {
+      showSnackbar(res?.error || "Clear cache failed", "error");
+    }
+  });
+}
+
 function initializeDevUserToggles() {
-  if (!devAutoRegisterToggle || !devShowCountdownToggle || !devKeepLoggedInToggle) {
+  if (
+    !devAutoRegisterToggle ||
+    !devShowCountdownToggle ||
+    !devKeepLoggedInToggle ||
+    !devProfessorRatingsToggle
+  ) {
     return;
   }
 
@@ -163,6 +189,7 @@ function initializeDevUserToggles() {
     devAutoRegisterToggle.checked = !!saved.autoRegister;
     devShowCountdownToggle.checked = !!saved.showCountdown;
     devKeepLoggedInToggle.checked = isWaitingHelpersEnabled(saved);
+    devProfessorRatingsToggle.checked = saved.showProfessorRatings !== false;
   };
 
   chrome.storage.sync.get(DEFAULT_SETTINGS, applySyncSettings);
@@ -177,6 +204,12 @@ function initializeDevUserToggles() {
 
   devKeepLoggedInToggle.addEventListener("change", () => {
     setWaitingHelpers(devKeepLoggedInToggle.checked);
+  });
+
+  devProfessorRatingsToggle.addEventListener("change", () => {
+    chrome.storage.sync.set({
+      showProfessorRatings: devProfessorRatingsToggle.checked,
+    });
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -307,6 +340,20 @@ function buildAdvancedFields() {
         section.appendChild(calendarActions);
       }
 
+      if (group.id === "professor_ratings") {
+        const rmpActions = document.createElement("div");
+        rmpActions.className = "dev-calendar-actions";
+
+        const clearRmpBtn = document.createElement("button");
+        clearRmpBtn.type = "button";
+        clearRmpBtn.className = "advanced-btn advanced-btn--danger";
+        clearRmpBtn.textContent = "Clear RMP cache";
+        clearRmpBtn.addEventListener("click", clearRmpCache);
+
+        rmpActions.appendChild(clearRmpBtn);
+        section.appendChild(rmpActions);
+      }
+
       const grid = document.createElement("div");
       grid.className = "advanced-fields";
 
@@ -343,6 +390,9 @@ function initializePopup() {
     sniperToggle.checked = !!saved.autoRegister;
     countdownToggle.checked = !!saved.showCountdown;
     waitingHelpersToggle.checked = isWaitingHelpersEnabled(saved);
+    if (professorRatingsToggle) {
+      professorRatingsToggle.checked = saved.showProfessorRatings !== false;
+    }
     updateModeBadge();
   });
 
@@ -359,6 +409,20 @@ function initializePopup() {
   waitingHelpersToggle.addEventListener("change", () => {
     setWaitingHelpers(waitingHelpersToggle.checked);
     updateModeBadge();
+  });
+
+  professorRatingsToggle?.addEventListener("change", () => {
+    chrome.storage.sync.set({
+      showProfessorRatings: professorRatingsToggle.checked,
+    });
+    updateModeBadge();
+  });
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "sync" || !changes.showProfessorRatings || !professorRatingsToggle) {
+      return;
+    }
+    professorRatingsToggle.checked = changes.showProfessorRatings.newValue !== false;
   });
 
   shareBtn.addEventListener("click", () => {

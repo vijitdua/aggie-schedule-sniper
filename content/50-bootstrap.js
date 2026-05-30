@@ -51,6 +51,7 @@
       showCountdown: state.settings.showCountdown,
       keepSessionAlive: state.settings.keepSessionAlive,
       keepScreenAwake: state.settings.keepScreenAwake,
+      showProfessorRatings: state.settings.showProfessorRatings,
       browserTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
   }
@@ -61,6 +62,7 @@
       showCountdown: true,
       keepSessionAlive: true,
       keepScreenAwake: true,
+      showProfessorRatings: true,
     };
 
     chrome.storage.sync.get(defaultSettings, (storedValues) => {
@@ -71,6 +73,7 @@
         state.settings.showCountdown = true;
         state.settings.keepSessionAlive = true;
         state.settings.keepScreenAwake = true;
+        state.settings.showProfessorRatings = true;
 
         chrome.storage.sync.set(
           {
@@ -78,6 +81,7 @@
             showCountdown: true,
             keepSessionAlive: true,
             keepScreenAwake: true,
+            showProfessorRatings: true,
           },
           () => {
             onReady();
@@ -90,6 +94,8 @@
       state.settings.showCountdown = !!storedValues.showCountdown;
       state.settings.keepSessionAlive = !!storedValues.keepSessionAlive;
       state.settings.keepScreenAwake = !!storedValues.keepScreenAwake;
+      state.settings.showProfessorRatings =
+        storedValues.showProfessorRatings !== false;
       onReady();
     });
   }
@@ -105,6 +111,11 @@
     api.initializePassTrackingState(passTimes);
     void api.maybeAttemptAutoRegistration(activePass);
     api.injectScheduleBuilderExportButton?.();
+    if (state.settings.showProfessorRatings) {
+      api.syncProfessorRatings?.();
+    } else {
+      api.removeProfessorRatings?.();
+    }
     api.renderOverlayUi(targetPass, activePass);
   }
 
@@ -181,7 +192,8 @@
         Object.prototype.hasOwnProperty.call(changes, "autoRegister") ||
         Object.prototype.hasOwnProperty.call(changes, "showCountdown") ||
         Object.prototype.hasOwnProperty.call(changes, "keepSessionAlive") ||
-        Object.prototype.hasOwnProperty.call(changes, "keepScreenAwake");
+        Object.prototype.hasOwnProperty.call(changes, "keepScreenAwake") ||
+        Object.prototype.hasOwnProperty.call(changes, "showProfessorRatings");
 
       if (changes.autoRegister) {
         state.settings.autoRegister = !!changes.autoRegister.newValue;
@@ -199,17 +211,24 @@
         state.settings.keepScreenAwake = !!changes.keepScreenAwake.newValue;
       }
 
+      if (changes.showProfessorRatings) {
+        state.settings.showProfessorRatings =
+          changes.showProfessorRatings.newValue !== false;
+      }
+
       if (touched) {
         snipeLog("[settings_changed]", {
           autoRegister: state.settings.autoRegister,
           showCountdown: state.settings.showCountdown,
           keepSessionAlive: state.settings.keepSessionAlive,
           keepScreenAwake: state.settings.keepScreenAwake,
+          showProfessorRatings: state.settings.showProfessorRatings,
           fromStorage: {
             autoRegister: changes.autoRegister,
             showCountdown: changes.showCountdown,
             keepSessionAlive: changes.keepSessionAlive,
             keepScreenAwake: changes.keepScreenAwake,
+            showProfessorRatings: changes.showProfessorRatings,
           },
         });
       }

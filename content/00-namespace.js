@@ -55,6 +55,7 @@
         showCountdown: true,
         keepSessionAlive: true,
         keepScreenAwake: true,
+        showProfessorRatings: true,
       },
       selectedPassId: null,
       cachedRegisterButton: null,

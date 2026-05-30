@@ -177,7 +177,7 @@
 
     ui.backdrop = createStyledElement(
       "div",
-      "position:fixed;inset:0;background:rgba(0,0,0,.22);z-index:2147483645;",
+      "position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2147483645;",
     );
     ui.backdrop.addEventListener("click", closeSettingsPanel);
 

@@ -136,7 +136,7 @@
         if (!forceShow && result?.[config.onboardingStorageKey]) {
           return;
         }
-        renderOnboardingModal();
+        renderOnboardingModal({ firstRun: true });
       });
     };
 
@@ -163,10 +163,14 @@
     return li;
   }
 
-  function renderOnboardingModal() {
+  function renderOnboardingModal(options = {}) {
+    const firstRun = !!options.firstRun;
+
     if (ui.onboardingRoot) {
       return;
     }
+
+    api.closeSettingsPanel?.();
 
     const builtByHref = ASS.branding.homepageUrl || "https://vijitdua.com";
     const shareUrl = ASS.branding.shareUrl || "https://ass.vijit.app";
@@ -178,7 +182,7 @@
       [
         "position:fixed",
         "inset:0",
-        "background:rgba(1,37,110,.4)",
+        "background:rgba(0,0,0,.65)",
         "z-index:2147483647",
         "display:flex",
         "align-items:center",
@@ -253,16 +257,18 @@
     );
 
     const item1 = listItem();
-    item1.append("Automatic class registration during pass times");
+    item1.append("Automatic class registration to save you from waitlists");
     list.appendChild(item1);
-
-    const item2 = listItem();
-    item2.append("Saves you from waitlists in competitive courses");
-    list.appendChild(item2);
 
     const item3 = listItem();
     item3.append("Exports your schedule to your calendar");
     list.appendChild(item3);
+
+    const itemRmp = listItem();
+    itemRmp.append(
+      "Adds RateMyProfessors ratings in course search",
+    );
+    list.appendChild(itemRmp);
 
     const item4 = listItem();
     const settingsIcon = document.createElement("img");
@@ -316,26 +322,39 @@
     continueBtn.type = "button";
     continueBtn.textContent = "Continue";
 
+    const dismissModal = () => {
+      backdrop.remove();
+      ui.onboardingRoot = null;
+    };
+
     continueBtn.addEventListener("click", () => {
-      chrome.storage.local.set({ [config.onboardingStorageKey]: true }, () => {
-        backdrop.remove();
-        ui.onboardingRoot = null;
-      });
+      if (firstRun) {
+        chrome.storage.local.set({ [config.onboardingStorageKey]: true }, dismissModal);
+        return;
+      }
+      dismissModal();
     });
 
     card.append(shareBtn, logo, title, tagline, list, disclaimer, builtBy, toast, continueBtn);
     backdrop.appendChild(card);
-    backdrop.addEventListener("click", (e) => {
-      if (e.target === backdrop) {
-        continueBtn.click();
-      }
-    });
+
+    if (!firstRun) {
+      backdrop.addEventListener("click", (e) => {
+        if (e.target === backdrop) {
+          dismissModal();
+        }
+      });
+    }
 
     document.body.appendChild(backdrop);
     ui.onboardingRoot = backdrop;
   }
 
+  function showOnboardingModal() {
+    renderOnboardingModal({ firstRun: false });
+  }
+
   api.maybeShowOnboarding = maybeShowOnboarding;
-  api.showOnboardingModal = renderOnboardingModal;
+  api.showOnboardingModal = showOnboardingModal;
   api.clearOnboardingDismissed = clearOnboardingDismissed;
 })();
