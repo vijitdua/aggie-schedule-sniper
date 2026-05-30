@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.3.3] - 2026-05-29
+
+### Added
+
+- Google Calendar export flow: download `.ics`, then in-modal steps to import (with link to Google Calendar **Settings → Import & export**).
+- **Download .ics again** on the Google import step (Schedule Builder export modal).
+
+### Fixed
+
+- Calendar export: weekly events now end at quarter instruction end (Pacific `RRULE` `UNTIL`) instead of repeating indefinitely.
+- Registrar quarter dates (e.g. `Sep 23`, `Dec 4 @ 11:59 p.m.`) are normalized before export; unparseable dates prompt for manual start/end instead of failing silently.
+- Export modal shows a formatted date range (e.g. `Sep 23 – Dec 4, 2026`), not raw registrar strings.
+
+### Changed
+
+- `.ics` files use `America/Los_Angeles`, `ass-` filename prefix, and `ass-…@ass.vijit.app` UIDs.
+- Schedule Builder toolbar and popup: **Export Calendar** label.
+- Floating overlay launcher label: **ass.vijit.app**.
+- Onboarding dismiss storage key bumped (`assOnboardingDismissed_v2`) so updating users see the welcome modal again.
+- Manifest `short_name`: **Aggie Schedule Sniper**.
+
 ## [2.3.2] - 2026-05-28
 
 ### Fixed

@@ -24,7 +24,7 @@
     FR: "Fri",
   };
   const GOOGLE_CALENDAR_IMPORT_URL =
-    "https://calendar.google.com/calendar/u/0/r/settings/importexport";
+    "https://calendar.google.com/calendar/u/0/r/settings/export";
 
   let exportModalRoot = null;
 
@@ -64,26 +64,89 @@
   }
 
   function formatDateRange(bounds) {
-    if (!bounds?.instructionBegins || !bounds?.instructionEnds) {
-      return "Quarter dates unavailable";
+    if (bounds?.dateRangeLabel) {
+      return bounds.dateRangeLabel;
     }
-    return `${bounds.instructionBegins} – ${bounds.instructionEnds}`;
+    if (bounds?.instructionBeginsParts && bounds?.instructionEndsParts) {
+      return ICS.formatPtDateRange(
+        bounds.instructionBeginsParts,
+        bounds.instructionEndsParts,
+      );
+    }
+    return "Quarter dates unavailable";
   }
 
-  function isoDateToUsLabel(iso) {
-    const match = (iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (!match) {
-      return null;
+  function termYearFromName(termName) {
+    return (termName || "").match(/\b(20\d{2})\b/)?.[1] || null;
+  }
+
+  function normalizeQuarterBounds(bounds, termName) {
+    if (!bounds?.ok) {
+      return { ok: false, error: bounds?.error || "Quarter dates unavailable." };
     }
-    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-    if (Number.isNaN(date.getTime())) {
-      return null;
+
+    const termYear = termYearFromName(termName);
+    const startParts =
+      bounds.instructionBeginsParts ||
+      (bounds.instructionBeginsIso
+        ? ICS.isoToParts(bounds.instructionBeginsIso)
+        : ICS.parseUsDate(bounds.instructionBegins, termYear));
+    const endParts =
+      bounds.instructionEndsParts ||
+      (bounds.instructionEndsIso
+        ? ICS.isoToParts(bounds.instructionEndsIso)
+        : ICS.parseUsDate(bounds.instructionEnds || bounds.quarterEnds, termYear));
+
+    if (!startParts || !endParts) {
+      snipeLog("[calendar_export]", {
+        action: "quarter_bounds_unparsed",
+        termName,
+        source: bounds.source,
+        instructionBegins: bounds.instructionBegins,
+        instructionEnds: bounds.instructionEnds,
+        quarterEnds: bounds.quarterEnds,
+      });
+      return { ok: false, error: "Could not parse quarter dates from registrar." };
     }
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
+
+    if (ICS.compareParts(endParts, startParts) < 0) {
+      return { ok: false, error: "Quarter end date is before the start date." };
+    }
+
+    return {
+      ...bounds,
+      ok: true,
+      termName: bounds.termName || termName,
+      instructionBeginsParts: startParts,
+      instructionEndsParts: endParts,
+      instructionBeginsIso: ICS.partsToIso(startParts),
+      instructionEndsIso: ICS.partsToIso(endParts),
+      dateRangeLabel: ICS.formatPtDateRange(startParts, endParts),
+    };
+  }
+
+  async function resolveQuarterBounds(termName) {
+    const registrar = await api.getQuarterBounds(termName);
+    let normalized = registrar.ok
+      ? normalizeQuarterBounds(registrar, termName)
+      : { ok: false, error: registrar.error };
+
+    if (normalized.ok) {
+      return normalized;
+    }
+
+    snipeLog("[calendar_export]", {
+      action: "quarter_bounds_manual_prompt",
+      termName,
+      registrarOk: registrar.ok,
+      error: normalized.error || registrar.error,
     });
+
+    const manual = await promptManualQuarterBounds(termName);
+    if (!manual.ok) {
+      return manual;
+    }
+    return normalizeQuarterBounds(manual, termName);
   }
 
   function createQuarterDateField(labelText) {
@@ -180,7 +243,7 @@
       const title = api.formatCalendarEventTitle(course);
       const color = getCourseColor(courseIndex);
       if (course.finalExam?.date && course.finalExam?.time) {
-        const sortKey = ICS.parseUsDateTime(
+        const finalParts = ICS.parseUsDateTime(
           course.finalExam.date,
           course.finalExam.time,
         );
@@ -189,7 +252,7 @@
           color,
           date: course.finalExam.date,
           time: course.finalExam.time,
-          sortKey: sortKey ? sortKey.getTime() : Number.MAX_SAFE_INTEGER,
+          sortKey: finalParts ? ICS.partsSortKey(finalParts) : Number.MAX_SAFE_INTEGER,
           raw: null,
         });
       } else if (course.finalExam?.raw) {
@@ -553,13 +616,13 @@
           ),
           api.createStyledElement(
             "p",
-            `margin:0 0 14px;font-size:13px;color:${MUTED};`,
-            termName,
+            `margin:0 0 14px;font-size:13px;color:${MUTED};line-height:1.45;`,
+            `We couldn't read quarter dates for ${termName} from the registrar. Enter instruction begin and end (Pacific time).`,
           ),
         );
 
-        const { field: startField, input: beginsInput } = createQuarterDateField("Start date");
-        const { field: endField, input: endsInput } = createQuarterDateField("End date");
+        const { field: startField, input: beginsInput } = createQuarterDateField("Quarter starts");
+        const { field: endField, input: endsInput } = createQuarterDateField("Quarter ends");
         panel.append(startField, endField);
 
         beginsInput.addEventListener("change", () => {
@@ -594,9 +657,7 @@
         );
         saveBtn.type = "button";
         saveBtn.addEventListener("click", () => {
-          const instructionBegins = isoDateToUsLabel(beginsInput.value);
-          const instructionEnds = isoDateToUsLabel(endsInput.value);
-          if (!instructionBegins || !instructionEnds) {
+          if (!beginsInput.value || !endsInput.value) {
             return;
           }
           if (beginsInput.value > endsInput.value) {
@@ -606,17 +667,21 @@
           snipeLog("[calendar_export]", {
             action: "manual_bounds_used",
             termName,
-            instructionBegins,
-            instructionEnds,
+            instructionBeginsIso: beginsInput.value,
+            instructionEndsIso: endsInput.value,
           });
-          resolve({
-            ok: true,
-            termName,
-            source: "manual",
-            instructionBegins,
-            instructionEnds,
-            quarterEnds: instructionEnds,
-          });
+          resolve(
+            normalizeQuarterBounds(
+              {
+                ok: true,
+                termName,
+                source: "manual",
+                instructionBeginsIso: beginsInput.value,
+                instructionEndsIso: endsInput.value,
+              },
+              termName,
+            ),
+          );
         });
 
         actions.append(cancelBtn, saveBtn);
@@ -740,7 +805,7 @@
     const googleBtn = api.createStyledElement(
       "button",
       `padding:6px 12px;border:none;border-radius:999px;background:${UCD_BLUE};color:${UCD_GOLD};font-size:12px;font-weight:700;cursor:pointer;`,
-      "Google Calendar",
+      "Download for Google",
     );
     googleBtn.type = "button";
     googleBtn.disabled = !schedule.courses.length;
@@ -770,13 +835,18 @@
         api.createStyledElement(
           "p",
           "margin:0 0 6px;",
-          "2. Open Google Calendar's import page (Settings → Import & export).",
+          "2. In Google Calendar, go to Settings → Import & export.",
         ),
         api.createStyledElement(
           "p",
           "margin:0 0 12px;",
-          "3. Select that file, pick a calendar, and click Import.",
+          "3. Under Import, choose that .ics file, pick a calendar, and click Import.",
         ),
+      );
+
+      const stepActions = api.createStyledElement(
+        "div",
+        "display:flex;flex-wrap:wrap;gap:8px;align-items:center;",
       );
 
       const openImportBtn = api.createStyledElement(
@@ -797,7 +867,27 @@
           importTabOpened: !!importTab,
         });
       });
-      steps.appendChild(openImportBtn);
+
+      const downloadAgainBtn = api.createStyledElement(
+        "button",
+        `padding:6px 12px;border:1px solid ${SOFT_BORDER};border-radius:999px;background:#fff;color:${UCD_BLUE};font-size:12px;font-weight:700;cursor:pointer;`,
+        "Download .ics again",
+      );
+      downloadAgainBtn.type = "button";
+      downloadAgainBtn.addEventListener("click", () => {
+        const events = buildIcsEvents(schedule, bounds);
+        if (!events.length) {
+          showExportError(
+            "Could not rebuild the .ics file. Reload the page and try again.",
+          );
+          return;
+        }
+        downloadIcsFile(schedule, ICS.buildIcs(events));
+        snipeLog("[calendar_export]", { action: "downloaded_again", filename });
+      });
+
+      stepActions.append(openImportBtn, downloadAgainBtn);
+      steps.appendChild(stepActions);
 
       const doneBtn = api.createStyledElement(
         "button",
@@ -810,22 +900,56 @@
       actions.append(steps, doneBtn);
     };
 
+    let exportErrorEl = null;
+    const showExportError = (message) => {
+      exportErrorEl?.remove();
+      exportErrorEl = api.createStyledElement(
+        "p",
+        "margin:0;padding:8px 10px;border-radius:8px;background:#fef2f2;color:#b91c1c;font-size:12px;line-height:1.4;",
+        message,
+      );
+      actions.insertBefore(exportErrorEl, actionRow);
+    };
+
     if (schedule.courses.length) {
-      downloadBtn.addEventListener("click", () => {
-        const icsText = buildIcsText(schedule, bounds);
+      const exportIcsFromModal = (mode) => {
+        exportErrorEl?.remove();
+        exportErrorEl = null;
+        const events = buildIcsEvents(schedule, bounds);
+        if (!events.length) {
+          showExportError(
+            "Could not build the .ics file. Reload the page and try again, or enter quarter dates when prompted.",
+          );
+          snipeLog("[calendar_export]", {
+            action: "export_failed",
+            mode,
+            bounds,
+          });
+          return null;
+        }
+        const icsText = ICS.buildIcs(events);
+        const filename = getIcsFilename(schedule);
         downloadIcsFile(schedule, icsText);
+        snipeLog("[calendar_export]", {
+          action: mode === "google" ? "google_calendar_download" : "downloaded",
+          filename,
+        });
+        return filename;
+      };
+
+      downloadBtn.addEventListener("click", () => {
+        if (!exportIcsFromModal("download")) {
+          return;
+        }
         completeExport("download");
         dismissExportModal();
       });
 
       googleBtn.addEventListener("click", () => {
-        const icsText = buildIcsText(schedule, bounds);
-        const filename = getIcsFilename(schedule);
-        downloadIcsFile(schedule, icsText);
-        snipeLog("[calendar_export]", {
-          action: "google_calendar_download",
-          filename,
-        });
+        const filename = exportIcsFromModal("google");
+        if (!filename) {
+          return;
+        }
         completeExport("google");
         showGoogleImportSteps(filename);
       });
@@ -847,20 +971,14 @@
 
   function buildIcsEvents(schedule, bounds) {
     const events = [];
-    const startBase = ICS.parseUsDate(bounds.instructionBegins);
-    const endDate = ICS.parseUsDate(bounds.instructionEnds || bounds.quarterEnds);
-
-    function firstOccurrence(baseDate, dayCode) {
-      const map = { MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6, SU: 0 };
-      const target = map[dayCode];
-      const date = new Date(baseDate);
-      for (let i = 0; i < 7; i += 1) {
-        if (date.getDay() === target) {
-          return date;
-        }
-        date.setDate(date.getDate() + 1);
-      }
-      return baseDate;
+    const startBase = bounds.instructionBeginsParts;
+    const endDate = bounds.instructionEndsParts;
+    if (!startBase || !endDate) {
+      snipeLog("[calendar_export]", {
+        action: "ics_bounds_invalid",
+        bounds,
+      });
+      return events;
     }
 
     const uidBase = `ass-${Date.now()}`;
@@ -876,7 +994,10 @@
         .join("\n");
 
       course.meetings.forEach((meeting, meetingIndex) => {
-        const occurrenceDate = firstOccurrence(startBase, meeting.dayCodes[0]);
+        const occurrenceDate = ICS.firstOccurrenceOnOrAfter(
+          startBase,
+          meeting.dayCodes[0],
+        );
         const start = ICS.parseTimeOnDate(occurrenceDate, meeting.start);
         const end = ICS.parseTimeOnDate(occurrenceDate, meeting.end);
         if (!start || !end) {
@@ -899,11 +1020,10 @@
           course.finalExam.time,
         );
         if (finalStart) {
-          const finalEnd = new Date(finalStart.getTime() + 2 * 60 * 60 * 1000);
           events.push({
             uid: `${uidBase}-final-${courseIndex}@ass.vijit.app`,
             start: finalStart,
-            end: finalEnd,
+            end: ICS.addHours(finalStart, 2),
             summary: `FINAL: ${summary}`,
             location: "",
             description,
@@ -918,7 +1038,7 @@
   function getIcsFilename(schedule) {
     const termSlug = ICS.slugify(schedule.termName);
     const scheduleSlug = ICS.slugify(schedule.scheduleName);
-    return `aggie-schedule-${termSlug}-${scheduleSlug}.ics`;
+    return `ass-${termSlug}-${scheduleSlug}.ics`;
   }
 
   function buildIcsText(schedule, bounds) {
@@ -937,7 +1057,7 @@
     snipeLog("[calendar_export]", { action: "downloaded", filename });
   }
 
-  async function runCalendarExport() {
+  async function prepareCalendarExport() {
     if (window.self !== window.top) {
       return { ok: false, error: "Export only works on the main Schedule Builder page." };
     }
@@ -948,8 +1068,11 @@
     }
 
     if (!schedule.ok) {
-      showExportModal({ ...schedule, courses: [] }, null);
-      return { ok: false, error: schedule.error };
+      return { ok: false, error: schedule.error, schedule };
+    }
+
+    if (!schedule.courses.length) {
+      return { ok: false, error: "No registered or waitlisted courses to export." };
     }
 
     snipeLog("[calendar_export]", {
@@ -966,17 +1089,57 @@
         })),
     });
 
-    const bounds = await api.getQuarterBounds(schedule.termName);
-    let resolvedBounds = bounds;
+    const resolvedBounds = await resolveQuarterBounds(schedule.termName);
     if (!resolvedBounds.ok) {
-      resolvedBounds = await promptManualQuarterBounds(schedule.termName);
-      if (!resolvedBounds.ok) {
-        return { ok: false, error: resolvedBounds.error };
-      }
+      return { ok: false, error: resolvedBounds.error || "Quarter dates required for export." };
     }
 
+    return { ok: true, schedule, bounds: resolvedBounds };
+  }
+
+  async function runDirectCalendarExport(mode = "download") {
+    const prepared = await prepareCalendarExport();
+    if (!prepared.ok) {
+      return prepared;
+    }
+
+    const { schedule, bounds } = prepared;
+    const events = buildIcsEvents(schedule, bounds);
+    if (!events.length) {
+      return {
+        ok: false,
+        error: "Could not build calendar events — check quarter start/end dates.",
+      };
+    }
+
+    const icsText = ICS.buildIcs(events);
+    const filename = getIcsFilename(schedule);
+    downloadIcsFile(schedule, icsText);
+    snipeLog("[calendar_export]", {
+      action: mode === "google" ? "google_calendar_download" : "downloaded",
+      filename,
+      direct: true,
+    });
+
+    if (mode === "google") {
+      return { ok: true, mode: "google", filename, importUrl: GOOGLE_CALENDAR_IMPORT_URL };
+    }
+
+    return { ok: true, mode: "download", filename };
+  }
+
+  async function runCalendarExport() {
+    const prepared = await prepareCalendarExport();
+    if (!prepared.ok) {
+      if (prepared.schedule) {
+        showExportModal({ ...prepared.schedule, courses: [] }, null);
+      }
+      return { ok: false, error: prepared.error };
+    }
+
+    const { schedule, bounds } = prepared;
     return new Promise((resolve) => {
-      showExportModal(schedule, resolvedBounds, (result) => {
+      showExportModal(schedule, bounds, (result) => {
         resolve(result || { ok: false, error: "Export cancelled." });
       });
     });
@@ -1041,7 +1204,7 @@
     btn.id = "assExportCalendarBtn";
     btn.type = "button";
     btn.title = "Download your schedule as a .ics file (Aggie Schedule Sniper)";
-    btn.appendChild(createLogoButtonContent("Export calendar", 20));
+    btn.appendChild(createLogoButtonContent("Export Calendar", 20));
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1055,11 +1218,16 @@
       void runCalendarExport().then(sendResponse);
       return true;
     }
+    if (message?.type === "ASS_DOWNLOAD_ICS") {
+      void runDirectCalendarExport(message.mode || "download").then(sendResponse);
+      return true;
+    }
     return false;
   });
 
   Object.assign(api, {
     runCalendarExport,
+    runDirectCalendarExport,
     injectScheduleBuilderExportButton,
   });
 })();

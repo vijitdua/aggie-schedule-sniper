@@ -116,9 +116,7 @@
     const noTrackedPass = !targetPass;
     ui.root.style.justifyContent = "center";
     ui.launcherButton.style.display = "inline-flex";
-    ui.launcherLabel.textContent = isEverythingHidden
-      ? "Aggie Schedule Sniper  ⚙"
-      : "Aggie Sniper  ⚙";
+    ui.launcherLabel.textContent = "ass.vijit.app  ⚙";
 
     ui.countdownChip.style.display = "none";
     ui.statusChip.style.display = "none";

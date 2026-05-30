@@ -32,7 +32,7 @@
     quarterRowInstructionEndsRegex: "instruction ends",
     quarterRowFinalExamsRegex: "final examinations",
     quarterRowQuarterEndsRegex: "quarter ends",
-    onboardingStorageKey: "assOnboardingDismissed",
+    onboardingStorageKey: "assOnboardingDismissed_v2",
   };
 
   const GROUPS = [
