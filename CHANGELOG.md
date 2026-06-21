@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- RMP ratings now appear in the **Add / Search Courses** modal (`[role='dialog']`), not only inline search results.
+- RMP watches `document.body` so ratings inject when the search modal opens dynamically.
+- Developer menu: **Clear all caches** near the top (registrar calendar + RMP).
+- RMP no longer caches transient lookup failures (API errors, rate limits) as permanent 7-day misses; legacy false misses are dropped on load.
+
 ## [3.0.0] - 2026-05-29
 
 ### Added

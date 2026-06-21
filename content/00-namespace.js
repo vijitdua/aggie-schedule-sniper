@@ -44,7 +44,7 @@
         "a.register_trigger, a, button, input[type='button'], input[type='submit']",
       registerButtonTextRegex: /\bregister\b/i,
       excludedButtonTextRegex: /pre-check/i,
-      onboardingStorageKey: "assOnboardingDismissed_v2",
+      onboardingStorageKey: "assOnboardingDismissed_v3",
       scheduleCourseSelector:
         "#SavedSchedulesListDisplayContainer article.CourseItem",
       registrarCalendarUrl: "https://registrar.ucdavis.edu/calendar/quarter",

@@ -17,7 +17,6 @@
   let inFlight = 0;
   const waitQueue = [];
   const lookupByName = new Map();
-  const processedAnchors = new WeakSet();
 
   function shareUrl() {
     return ASS.branding?.shareUrl || "https://ass.vijit.app";
@@ -36,6 +35,33 @@
       config.rmpInstructorSelector ||
       "div.results-instructor a, article.course-container a[href^='mailto:']"
     );
+  }
+
+  /** Comma-separated `rmpSearchContainerSelector` plus saved schedule root. */
+  function rmpRoots() {
+    const seen = new Set();
+    const roots = [];
+    const add = (node) => {
+      if (node && !seen.has(node)) {
+        seen.add(node);
+        roots.push(node);
+      }
+    };
+    const search =
+      config.rmpSearchContainerSelector ||
+      "#inlineCourseResultsContainer, [role='dialog']";
+    for (const sel of search.split(",")) {
+      const trimmed = sel.trim();
+      if (trimmed) {
+        document.querySelectorAll(trimmed).forEach(add);
+      }
+    }
+    add(
+      document.querySelector(
+        config.rmpSavedContainerSelector || "#SavedSchedulesListDisplayContainer",
+      ),
+    );
+    return roots;
   }
 
   function isStaffLabel(text) {
@@ -284,13 +310,24 @@
     const fresh = {};
     if (raw && typeof raw === "object") {
       for (const [name, entry] of Object.entries(raw)) {
-        if (isFresh(entry)) {
-          fresh[name] = entry;
+        if (!isFresh(entry)) {
+          continue;
         }
+        if (entry.miss) {
+          // Legacy misses (no missReason) may be transient errors cached before v3.0.1.
+          if (entry.missReason !== "not_found") {
+            continue;
+          }
+        }
+        fresh[name] = entry;
       }
     }
     cacheByName = fresh;
-    missNames = new Set(Array.isArray(stored?.[MISS_KEY]) ? stored[MISS_KEY] : []);
+    missNames = new Set(
+      (Array.isArray(stored?.[MISS_KEY]) ? stored[MISS_KEY] : []).filter(
+        (name) => fresh[name]?.missReason === "not_found",
+      ),
+    );
     cacheLoaded = true;
   }
 
@@ -375,6 +412,11 @@
     });
   }
 
+  function shouldCacheMiss(response) {
+    const reason = response?.reason;
+    return reason === "not_found" || reason === "skipped";
+  }
+
   function storeLookupResult(displayName, response) {
     if (response.ok && response.professor) {
       const entry = {
@@ -387,7 +429,11 @@
       return entry;
     }
 
-    const missEntry = { miss: true, cachedAtMs: Date.now() };
+    if (!shouldCacheMiss(response)) {
+      return { miss: true, transient: true };
+    }
+
+    const missEntry = { miss: true, missReason: "not_found", cachedAtMs: Date.now() };
     cacheByName[displayName] = missEntry;
     missNames.add(displayName);
     persistCache();
@@ -453,15 +499,10 @@
     const savedRoot = document.querySelector(
       config.rmpSavedContainerSelector || "#SavedSchedulesListDisplayContainer",
     );
-    const searchRoot = document.querySelector(
-      config.rmpSearchContainerSelector || "#inlineCourseResultsContainer",
-    );
-
-    const roots = [searchRoot, savedRoot].filter(Boolean);
     const seen = new Set();
     const anchors = [];
 
-    for (const root of roots) {
+    for (const root of rmpRoots()) {
       for (const anchor of root.querySelectorAll(selector)) {
         if (seen.has(anchor)) {
           continue;
@@ -489,16 +530,11 @@
   }
 
   function processAnchor(anchor) {
-    if (processedAnchors.has(anchor)) {
-      return;
-    }
-
     const parsed = parseInstructorLabel(anchor.textContent);
     if (!parsed) {
       return;
     }
 
-    processedAnchors.add(anchor);
     const block = getOrCreateBlock(anchor, parsed.displayName);
 
     const cached = cachedEntryFor(parsed.displayName);
@@ -536,23 +572,11 @@
       return;
     }
     observerStarted = true;
-    void ensureCacheLoaded().then(() => scheduleScan());
-
-    const observeTargets = [
-      document.querySelector(
-        config.rmpSearchContainerSelector || "#inlineCourseResultsContainer",
-      ),
-      document.querySelector(
-        config.rmpSavedContainerSelector || "#SavedSchedulesListDisplayContainer",
-      ),
-    ].filter(Boolean);
-
-    for (const root of observeTargets) {
-      new MutationObserver(scheduleScan).observe(root, {
-        childList: true,
-        subtree: true,
-      });
-    }
+    new MutationObserver(scheduleScan).observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+    void ensureCacheLoaded().then(scheduleScan);
   }
 
   function syncProfessorRatings() {

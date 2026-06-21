@@ -19,6 +19,7 @@ const snackbar = document.getElementById("snackbar");
 const advancedFields = document.getElementById("advancedFields");
 const resetAdvancedBtn = document.getElementById("resetAdvancedBtn");
 const resetAdvancedTopBtn = document.getElementById("resetAdvancedTopBtn");
+const clearAllCachesBtn = document.getElementById("clearAllCachesBtn");
 const devAutoRegisterToggle = document.getElementById("devAutoRegisterToggle");
 const devShowCountdownToggle = document.getElementById("devShowCountdownToggle");
 const devKeepLoggedInToggle = document.getElementById("devKeepLoggedInToggle");
@@ -112,6 +113,7 @@ function initializeDeveloperPage() {
 
   resetAdvancedBtn?.addEventListener("click", resetAdvancedOverrides);
   resetAdvancedTopBtn?.addEventListener("click", resetAdvancedOverrides);
+  clearAllCachesBtn?.addEventListener("click", clearAllCaches);
 }
 
 function resetAdvancedOverrides() {
@@ -135,6 +137,24 @@ function refetchRegistrarCalendar() {
       showSnackbar("Quarter calendar refetched", "success");
     } else {
       showSnackbar(res?.error || "Refetch failed", "error");
+    }
+  });
+}
+
+function clearAllCaches() {
+  if (!chrome.runtime?.id) {
+    showSnackbar("Reload the extension, then try again", "error");
+    return;
+  }
+  chrome.runtime.sendMessage({ type: "ASS_CLEAR_ALL_CACHES" }, (res) => {
+    if (chrome.runtime.lastError) {
+      showSnackbar(chrome.runtime.lastError.message, "error");
+      return;
+    }
+    if (res?.ok) {
+      showSnackbar("All caches cleared", "success");
+    } else {
+      showSnackbar(res?.error || "Clear caches failed", "error");
     }
   });
 }

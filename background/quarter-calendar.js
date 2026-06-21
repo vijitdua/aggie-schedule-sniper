@@ -237,5 +237,18 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "ASS_CLEAR_ALL_CACHES") {
+    void (async () => {
+      try {
+        await clearCache();
+        await chrome.storage.local.remove(["assRmpCache", "assRmpMiss"]);
+        sendResponse({ ok: true });
+      } catch (error) {
+        sendResponse({ ok: false, error: error?.message || String(error) });
+      }
+    })();
+    return true;
+  }
+
   return false;
 });

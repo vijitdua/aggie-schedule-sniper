@@ -32,11 +32,12 @@
     quarterRowInstructionEndsRegex: "instruction ends",
     quarterRowFinalExamsRegex: "final examinations",
     quarterRowQuarterEndsRegex: "quarter ends",
-    onboardingStorageKey: "assOnboardingDismissed_v2",
+    onboardingStorageKey: "assOnboardingDismissed_v3",
     rmpSchoolId: "U2Nob29sLTEwNzM=",
     rmpCacheTtlMs: 604800000,
     rmpMaxConcurrentLookups: 5,
-    rmpSearchContainerSelector: "#inlineCourseResultsContainer",
+    rmpSearchContainerSelector:
+      "#inlineCourseResultsContainer, [role='dialog']",
     rmpInstructorSelector:
       "div.results-instructor a, article.course-container a[href^='mailto:']",
     rmpSavedContainerSelector: "#SavedSchedulesListDisplayContainer",
@@ -261,7 +262,7 @@
       label: "Search results container",
       type: "string",
       group: "professor_ratings",
-      help: "Root element that holds inline course search results.",
+      help: "Comma-separated roots for course search results (inline list and Add/Search modal).",
     },
     {
       key: "rmpInstructorSelector",

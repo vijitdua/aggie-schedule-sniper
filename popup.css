@@ -708,6 +708,38 @@ body.dev-page #devShell {
   color: #fff;
 }
 
+.dev-cache-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--soft-border);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.dev-cache-bar__btn {
+  padding: 7px 12px;
+  border: 1px solid #b91c1c;
+  border-radius: 999px;
+  background: #fff;
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dev-cache-bar__btn:hover {
+  background: #991b1b;
+  color: #fff;
+}
+
+.dev-cache-bar__hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .dev-config-group {
   background: #fff;
   border: 1px solid var(--soft-border);
