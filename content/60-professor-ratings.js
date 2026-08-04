@@ -85,6 +85,38 @@
     };
   }
 
+  function parseProfessorNameForLookup(text) {
+    const parsedLabel = parseInstructorLabel(text);
+    if (parsedLabel) {
+      return parsedLabel;
+    }
+    const displayName = (text || "").trim();
+    if (
+      !displayName ||
+      /(^|\s)staff(\s|$)/i.test(displayName) ||
+      /(^|\s)tba(\s|$)/i.test(displayName)
+    ) {
+      return null;
+    }
+    const commaParts = displayName.split(",").map((part) => part.trim()).filter(Boolean);
+    if (commaParts.length === 2) {
+      return {
+        displayName,
+        firstInitial: commaParts[1].slice(0, 1),
+        lastName: commaParts[0],
+      };
+    }
+    const parts = displayName.split(/\s+/).filter(Boolean);
+    if (parts.length < 2) {
+      return null;
+    }
+    return {
+      displayName,
+      firstInitial: parts[0].slice(0, 1),
+      lastName: parts.slice(1).join(" "),
+    };
+  }
+
   function ensureStyles() {
     if (document.getElementById("ass-rmp-styles")) {
       return;
@@ -465,6 +497,15 @@
     return pending;
   }
 
+  async function getProfessorRating(displayName) {
+    const parsed = parseProfessorNameForLookup(displayName);
+    if (!parsed) {
+      return { miss: true, missReason: "skipped" };
+    }
+    await ensureCacheLoaded();
+    return fetchProfessorEntry(parsed);
+  }
+
   function paintBlocksForProfessor(displayName, entry) {
     const state = entry?.miss ? "miss" : "hit";
     for (const block of document.querySelectorAll(
@@ -616,5 +657,6 @@
   Object.assign(api, {
     syncProfessorRatings,
     removeProfessorRatings,
+    getProfessorRating,
   });
 })();

@@ -17,7 +17,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Chrome extension for UC Davis students using Schedule Builder. Watches your pass time, shows a countdown, and clicks Register ALL automatically when your registration window opens.
+Chrome extension for UC Davis students using Schedule Builder. Builds conflict-free course plans with professor ratings and live seat status, watches your pass time, shows a countdown, and clicks Register ALL automatically when your registration window opens.
 
 **Not affiliated with UC Davis.**
 
@@ -32,6 +32,16 @@ Chrome extension for UC Davis students using Schedule Builder. Watches your pass
 2. A floating **Aggie Sniper ⚙** bar appears near your pass times.
 3. Click it to open settings (auto-register, countdown).
 4. On first visit, a short onboarding modal explains how the app works (stay awake, keep the tab open, stay online).
+
+### Smart schedule planner
+
+1. Enter all desired courses in the **Smart auto scheduler** on Schedule Builder, for example `CHE002A, MAT 021A`.
+2. Search all sections and load live Open/Waitlist status plus RateMyProfessors data.
+3. Pick one professor per course, or let the extension optimize for Open seats and professor ratings.
+4. Review the conflict-free result, then optionally save those sections to the current Schedule Builder schedule.
+5. Use **Copy GPT scheduling prompt** to ask ChatGPT for a more personalized plan with the complete section dataset.
+
+Sections showing `Open 0 / Waitlist 0` are excluded. Waitlist-only and TBA results remain visibly flagged and require user review.
 
 ## Branches
 

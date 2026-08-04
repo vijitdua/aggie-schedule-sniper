@@ -111,6 +111,7 @@
     api.initializePassTrackingState(passTimes);
     void api.maybeAttemptAutoRegistration(activePass);
     api.injectScheduleBuilderExportButton?.();
+    api.ensureAutoSchedulerUi?.();
     if (state.settings.showProfessorRatings) {
       api.syncProfessorRatings?.();
     } else {

@@ -17,6 +17,8 @@ flowchart TB
     debug[10-debug.js]
     passes[20-pass-times.js]
     reg[30-registration.js]
+    planner[65-auto-scheduler.js]
+    bridge[page-scheduler-bridge.js MAIN world]
     ui[40-overlay-ui.js]
     onboard[45-onboarding.js]
     boot[50-bootstrap.js]
@@ -26,6 +28,8 @@ flowchart TB
   boot --> syncStorage
   boot --> passes
   boot --> reg
+  boot --> planner
+  planner -->|search, seats, save| bridge
   boot --> ui
   boot --> onboard
   ui -->|iframe| popup
@@ -48,6 +52,9 @@ flowchart TB
 | `content/20-pass-times.js` | Parse Pacific pass times, track selected pass |
 | `content/30-registration.js` | Register button discovery and click waves |
 | `content/40-overlay-ui.js` | Floating UI and settings panel |
+| `content/page-scheduler-bridge.js` | Narrow MAIN-world bridge to Schedule Builder's search, live-seat, and save APIs |
+| `shared/scheduler-core.js` | Pure course normalization, conflict solver, and GPT prompt generation |
+| `content/65-auto-scheduler.js` | Smart planner UI, RMP aggregation, course collection, and generated-plan saving |
 | `content/45-onboarding.js` | First-run modal (`assOnboardingDismissed` in local storage) |
 | `content/50-bootstrap.js` | Entry point, render loop, storage listeners |
 

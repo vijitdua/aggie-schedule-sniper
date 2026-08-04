@@ -1,0 +1,94 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const test = require("node:test");
+const vm = require("node:vm");
+
+function createBridgeHarness() {
+  let messageListener = null;
+  const posted = [];
+  const saved = [];
+  const rawCourse = {
+    course: {
+      subjectCode: "CHE",
+      courseNum: "002A",
+      shortDesc: "CHE 002A A01",
+      seqNum: "A01",
+      printCRN: "24335",
+      hidCRN: "24335",
+      crn: "24335",
+      title: "General Chemistry",
+      unitsLow: 5,
+    },
+    instructor: [{ instructorName: "O. Gulacar", lastName: "Gulacar" }],
+    meeting: [{ description: "Lecture", daysString: "TR", startTime: "1340", endTime: "1500" }],
+    finalExam: { examDate: "December, 07 2026 13:00:00" },
+  };
+  const window = {
+    location: { origin: "https://my.ucdavis.edu" },
+    user: { pidm: 123, init() {} },
+    search: {
+      async search() {
+        return { 0: rawCourse };
+      },
+      async fetchSeatAvailability() {
+        return { seatsAvail: 4, waitCount: 2 };
+      },
+    },
+    schedule: {
+      async addCourse(course) {
+        saved.push(course.course.crn);
+      },
+    },
+    addEventListener(type, listener) {
+      if (type === "message") messageListener = listener;
+    },
+    postMessage(message) {
+      posted.push(message);
+    },
+  };
+  window.top = window;
+  const source = fs.readFileSync(
+    path.join(__dirname, "../content/page-scheduler-bridge.js"),
+    "utf8",
+  );
+  vm.runInNewContext(source, { window, setTimeout, clearTimeout, console });
+
+  async function request(id, action, payload) {
+    messageListener({
+      source: window,
+      origin: window.location.origin,
+      data: {
+        channel: "ASS_AUTO_SCHEDULER_BRIDGE_V1",
+        direction: "request",
+        id,
+        action,
+        payload,
+      },
+    });
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      const result = posted.find((message) => message.id === id && message.kind === "result");
+      if (result) return result.payload;
+      await new Promise((resolve) => setTimeout(resolve, 2));
+    }
+    throw new Error("Bridge response timed out in test");
+  }
+
+  return { request, saved };
+}
+
+test("MAIN-world bridge returns all results with live seats and saves remembered CRNs", async () => {
+  const harness = createBridgeHarness();
+  const searched = await harness.request("search-1", "search_courses", { query: "CHE 002A" });
+  assert.equal(searched.ok, true);
+  assert.equal(searched.results.length, 1);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(searched.results[0].seats)),
+    { seatsAvail: 4, waitCount: 2 },
+  );
+
+  const saved = await harness.request("save-1", "save_courses", { crns: ["24335"] });
+  assert.equal(saved.ok, true);
+  assert.deepEqual(harness.saved, ["24335"]);
+  assert.equal(saved.results[0].ok, true);
+});
