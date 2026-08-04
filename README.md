@@ -37,7 +37,7 @@ Chrome extension for UC Davis students using Schedule Builder. Builds conflict-f
 
 1. Enter all desired courses in the **Smart auto scheduler** on Schedule Builder, for example `CHE002A, MAT 021A`.
 2. Search all sections and load live Open/Waitlist status plus RateMyProfessors data.
-3. Pick one professor per course, or let the extension optimize for Open seats and professor ratings.
+3. Pick one professor per course, or let the extension optimize for Open seats and professor ratings. Sections that conflict with courses already in your current Schedule are excluded.
 4. Review the conflict-free result, then optionally save those sections to the current Schedule Builder schedule.
 5. Use **Copy GPT scheduling prompt** to ask ChatGPT for a more personalized plan with the complete section dataset.
 

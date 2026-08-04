@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Smart auto scheduler embedded beside Schedule Builder search: accepts multiple course codes, searches every section, and loads live Open/Waitlist status.
 - Per-course professor picker with cached RateMyProfessors rating, difficulty, review count, and would-take-again data.
-- Conflict-free schedule solver for manually selected professors and an Open-seat-first, RMP-rating-optimized mode.
+- Conflict-free schedule solver for manually selected professors and an Open-seat-first, RMP-rating-optimized mode; sections that conflict with the current Schedule Builder schedule are hard-excluded and rechecked before every generated plan.
 - Strong Waitlist-only/TBA warnings, automatic exclusion of `Open 0 / Waitlist 0` sections, and one-click saving of a generated plan to the current schedule.
 - One-click GPT prompt export containing all sections, meeting times, seat status, professors, and RMP data.
 - Unit tests for course-code parsing, seat classification, conflict detection, optimization, and prompt generation.

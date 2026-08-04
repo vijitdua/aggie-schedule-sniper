@@ -36,6 +36,15 @@ function createBridgeHarness() {
       },
     },
     schedule: {
+      timeConflict: {
+        Load() {},
+        checkCourse() {
+          return {
+            bool: true,
+            text: "This course has a time conflict with Existing Course",
+          };
+        },
+      },
       async addCourse(course) {
         saved.push(course.course.crn);
       },
@@ -86,6 +95,14 @@ test("MAIN-world bridge returns all results with live seats and saves remembered
     JSON.parse(JSON.stringify(searched.results[0].seats)),
     { seatsAvail: 4, waitCount: 2 },
   );
+  assert.equal(searched.results[0].existingScheduleConflict, true);
+  assert.match(searched.results[0].existingScheduleConflictText, /Existing Course/);
+
+  const conflicts = await harness.request("conflicts-1", "check_existing_conflicts", {
+    courseKeys: ["24335"],
+  });
+  assert.equal(conflicts.ok, true);
+  assert.equal(conflicts.results[0].conflict, true);
 
   const saved = await harness.request("save-1", "save_courses", { crns: ["24335"] });
   assert.equal(saved.ok, true);

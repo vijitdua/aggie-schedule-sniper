@@ -53,7 +53,7 @@ flowchart TB
 | `content/30-registration.js` | Register button discovery and click waves |
 | `content/40-overlay-ui.js` | Floating UI and settings panel |
 | `content/page-scheduler-bridge.js` | Narrow MAIN-world bridge to Schedule Builder's search, live-seat, and save APIs |
-| `shared/scheduler-core.js` | Pure course normalization, conflict solver, and GPT prompt generation |
+| `shared/scheduler-core.js` | Pure course normalization, requested-course conflict solver, current-schedule exclusion, and GPT prompt generation |
 | `content/65-auto-scheduler.js` | Smart planner UI, RMP aggregation, course collection, and generated-plan saving |
 | `content/45-onboarding.js` | First-run modal (`assOnboardingDismissed` in local storage) |
 | `content/50-bootstrap.js` | Entry point, render loop, storage listeners |

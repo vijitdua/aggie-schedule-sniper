@@ -150,17 +150,27 @@
       header.textContent = `${group.courseKey}${group.title ? ` — ${group.title}` : ""}`;
       const meta = document.createElement("span");
       meta.className = "ass-planner__course-meta";
-      meta.textContent = `${group.sections.length} 个 sections`;
+      meta.textContent = `${group.sections.length} sections`;
       header.appendChild(meta);
       const list = document.createElement("div");
       list.className = "ass-planner__professors";
 
       for (const instructor of uniqueInstructors(group)) {
         const sections = instructorSections(group, instructor.displayName);
-        const open = sections.filter((section) => section.availability === "open").length;
-        const waitlist = sections.filter((section) => section.availability === "waitlist").length;
-        const unavailable = sections.filter((section) => section.availability === "unavailable").length;
-        const unknown = sections.filter((section) => section.availability === "unknown").length;
+        const nonConflicting = sections.filter(
+          (section) => !section.existingScheduleConflict,
+        );
+        const open = nonConflicting.filter((section) => section.availability === "open").length;
+        const waitlist = nonConflicting.filter((section) => section.availability === "waitlist").length;
+        const unavailable = nonConflicting.filter(
+          (section) => section.availability === "unavailable",
+        ).length;
+        const unknown = nonConflicting.filter(
+          (section) => section.availability === "unknown",
+        ).length;
+        const conflicts = sections.filter(
+          (section) => section.existingScheduleConflict,
+        ).length;
         const eligible = open + waitlist + unknown;
         const label = document.createElement("label");
         label.className = "ass-planner__professor";
@@ -180,9 +190,12 @@
         stats.textContent = core.formatRmp(instructor);
         main.append(name, stats);
         if (open) main.appendChild(pill(`${open} Open`, "open"));
-        if (waitlist) main.appendChild(pill(`${waitlist} 仅 Waitlist`, "wait"));
-        if (unknown) main.appendChild(pill(`${unknown} 名额未知`));
-        if (unavailable) main.appendChild(pill(`${unavailable} 已排除 0/0`, "closed"));
+        if (waitlist) main.appendChild(pill(`${waitlist} Waitlist only`, "wait"));
+        if (unknown) main.appendChild(pill(`${unknown} seat status unknown`));
+        if (unavailable) main.appendChild(pill(`${unavailable} excluded (0/0)`, "closed"));
+        if (conflicts) {
+          main.appendChild(pill(`${conflicts} conflict with current schedule`, "closed"));
+        }
         label.append(radio, main);
         list.appendChild(label);
       }
@@ -209,7 +222,7 @@
         const entry = await api.getProfessorRating(name);
         entries.set(name, entry?.miss ? null : entry);
         completed += 1;
-        setStatus(`正在读取 RateMyProfessors：${completed}/${names.size}…`, "info");
+        setStatus(`Loading RateMyProfessors: ${completed}/${names.size}…`, "info");
       }),
     );
     for (const group of groups) {
@@ -227,7 +240,7 @@
     }
     const codes = core.parseCourseCodes(refs.input.value);
     if (!codes.length) {
-      setStatus("没有识别到课程。请使用 CHE002A、CHE 002A 或 MAT 021A 这样的格式。", "error");
+      setStatus("No courses were recognized. Use a format such as CHE002A, CHE 002A, or MAT 021A.", "error");
       refs.input.focus();
       return;
     }
@@ -241,21 +254,21 @@
     try {
       for (let index = 0; index < codes.length; index += 1) {
         const code = codes[index];
-        setStatus(`正在搜索 ${code}（${index + 1}/${codes.length}）…`, "info");
+        setStatus(`Searching ${code} (${index + 1}/${codes.length})…`, "info");
         const response = await pageRequest(
           "search_courses",
           { query: code },
           (progress) => {
             if (progress?.stage === "seats") {
               setStatus(
-                `正在读取 ${code} 的实时 Open/Waitlist：${progress.completed}/${progress.total}…`,
+                `Loading live Open/Waitlist data for ${code}: ${progress.completed}/${progress.total}…`,
                 "info",
               );
             }
           },
         );
         if (!response.ok) {
-          throw new Error(`${code}: ${response.error || "搜索失败"}`);
+          throw new Error(`${code}: ${response.error || "Search failed"}`);
         }
         const byCrn = new Map();
         for (const raw of response.results || []) {
@@ -284,19 +297,19 @@
       }
       if (missing.length) {
         setStatus(
-          `已读取 ${groups.length} 门课，但没有找到：${missing.join("、")}。请检查当前学期是否开课。`,
+          `Loaded ${groups.length} courses, but could not find: ${missing.join(", ")}. Check whether they are offered in the current term.`,
           "error",
         );
       } else {
         dataReady = groups.length === codes.length;
         const sectionCount = groups.reduce((sum, group) => sum + group.sections.length, 0);
         setStatus(
-          `完成：${groups.length} 门课、${sectionCount} 个 sections。请选择每门课的教师，或使用评分优先自动排课。`,
+          `Done: ${groups.length} courses and ${sectionCount} sections. Choose one professor per course or use rating-optimized scheduling. Sections that conflict with your current Schedule are excluded.`,
           "success",
         );
       }
     } catch (error) {
-      setStatus(`读取课程失败：${error?.message || String(error)}`, "error");
+      setStatus(`Failed to load courses: ${error?.message || String(error)}`, "error");
     } finally {
       setBusy(false);
     }
@@ -322,18 +335,18 @@
     refs.scheduleTableBody.replaceChildren();
     if (result.hasWaitlist) {
       appendWarning(
-        "强提醒：这个方案包含 Open 为 0、只能走 Waitlist 的 section。保存课表不等于获得名额，请准备替代方案并持续检查排队状态。",
+        "Important: this plan contains a section with Open 0 that is available only through the waitlist. Saving it does not guarantee a seat. Keep a backup plan and monitor your waitlist position.",
         true,
       );
     }
     if (result.hasUnknownSeats) {
-      appendWarning("部分 section 的实时名额读取失败，保存或注册前请回到 Schedule Builder 再确认。", false);
+      appendWarning("Live seat data could not be loaded for some sections. Verify them in Schedule Builder before saving or registering.", false);
     }
     if (result.hasTbaMeetings) {
-      appendWarning("部分 meeting 时间为 TBA，当前无法验证这些未知时间是否冲突。", false);
+      appendWarning("Some meeting times are TBA, so conflicts involving those unknown times cannot be verified yet.", false);
     }
     if (result.truncated) {
-      appendWarning("组合数量很大；已显示目前找到的最佳无冲突方案，但不保证是全局最高评分。", false);
+      appendWarning("The search space was very large. This is the best conflict-free plan found so far, but it may not be the global rating optimum.", false);
     }
 
     for (const section of result.schedule) {
@@ -360,72 +373,140 @@
       row.appendChild(meetingsCell);
       refs.scheduleTableBody.appendChild(row);
     }
-    refs.outputTitle.textContent = autoRatings ? "评分优先的无冲突方案" : "按所选教师生成的无冲突方案";
+    refs.outputTitle.textContent = autoRatings
+      ? "Rating-optimized conflict-free plan"
+      : "Conflict-free plan for selected professors";
     refs.output.hidden = false;
     refs.output.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
-  function generate(autoRatings) {
+  async function refreshExistingScheduleConflicts() {
+    const sections = groups.flatMap((group) => group.sections);
+    const response = await pageRequest("check_existing_conflicts", {
+      courseKeys: sections.map((section) => section.saveKey || section.crn),
+    });
+    if (!response.ok) {
+      throw new Error(response.error || "Could not check the current Schedule for conflicts.");
+    }
+    const conflictByKey = new Map();
+    for (const result of response.results || []) {
+      if (!result.ok) {
+        throw new Error(result.error || "Course data is no longer available; search again.");
+      }
+      conflictByKey.set(result.courseKey, result);
+    }
+    for (const section of sections) {
+      const key = section.saveKey || section.crn;
+      const result = conflictByKey.get(key);
+      if (!result) {
+        throw new Error(`Could not verify current-schedule conflicts for ${section.section}.`);
+      }
+      section.existingScheduleConflict = result.conflict === true;
+      section.existingScheduleConflictText = normalizeText(result.text);
+    }
+  }
+
+  function restoreInstructorSelections(selections) {
+    for (const input of refs.courses.querySelectorAll("input[type='radio']")) {
+      input.checked = selections.get(input.dataset.courseKey) === input.value;
+    }
+  }
+
+  async function generate(autoRatings) {
     if (!groups.length || busy) {
       return;
     }
-    const result = core.generateSchedule(groups, {
-      autoRatings,
-      selections: selectedInstructors(),
-    });
-    if (!result.ok) {
-      const messages = {
-        missing_instructor: `请先为 ${result.courseKey} 选择一位教师。`,
-        no_eligible_sections: result.instructor
-          ? `${result.courseKey} 的 ${result.instructor} 没有可用 section（0/0 已排除）。`
-          : `${result.courseKey} 没有可用 section（0/0 已排除）。`,
-        no_conflict_free_schedule: "找不到覆盖所有课程的无时间冲突组合。请更换教师，或复制 Prompt 让 GPT 按更多个人偏好分析。",
-      };
-      setStatus(messages[result.reason] || "无法生成课表。", "error");
-      return;
+    const selections = selectedInstructors();
+    generatedResult = null;
+    refs.output.hidden = true;
+    setBusy(true);
+    setStatus("Rechecking every section against your current Schedule…", "info");
+    try {
+      await refreshExistingScheduleConflicts();
+      renderCourseChoices();
+      restoreInstructorSelections(selections);
+      const result = core.generateSchedule(groups, {
+        autoRatings,
+        selections,
+      });
+      if (!result.ok) {
+        const messages = {
+          missing_instructor: `Choose a professor for ${result.courseKey} first.`,
+          no_eligible_sections: result.instructor
+            ? `${result.courseKey} has no eligible section with ${result.instructor}. Sections with 0/0 seats or conflicts with your current Schedule are excluded.`
+            : `${result.courseKey} has no eligible section. Sections with 0/0 seats or conflicts with your current Schedule are excluded.`,
+          no_conflict_free_schedule: "No plan covers every requested course without conflicts between the requested courses and your current Schedule. Try different professors or copy the GPT prompt for a more personalized analysis.",
+        };
+        setStatus(messages[result.reason] || "A schedule could not be generated.", "error");
+        return;
+      }
+      generatedResult = result;
+      renderSchedule(result, autoRatings);
+      setStatus(
+        result.hasWaitlist
+          ? "Generated a plan with no known class-time conflicts between requested courses or with your current Schedule. It contains a waitlist-only section; review the red warning."
+          : "Generated a plan with no known class-time conflicts between requested courses or with your current Schedule. You can now save it to Schedule Builder.",
+        result.hasWaitlist ? "error" : "success",
+      );
+    } catch (error) {
+      setStatus(`Conflict check failed: ${error?.message || String(error)}`, "error");
+    } finally {
+      setBusy(false);
     }
-    generatedResult = result;
-    renderSchedule(result, autoRatings);
-    setStatus(
-      result.hasWaitlist
-        ? "已生成无上课时间冲突的方案，但含 Waitlist-only section，请查看红色警告。"
-        : "已生成无上课时间冲突的方案。确认后可保存到当前 Schedule Builder 课表。",
-      result.hasWaitlist ? "error" : "success",
-    );
   }
 
   async function saveGeneratedSchedule() {
     if (!generatedResult?.ok || busy) {
       return;
     }
-    if (
-      generatedResult.hasWaitlist &&
-      !window.confirm(
-        "这个方案包含只能 Waitlist 的课程。你确认仍要把该方案保存到当前 Schedule Builder 课表吗？",
-      )
-    ) {
-      return;
-    }
     setBusy(true);
-    setStatus("正在保存所选 sections 到当前 Schedule Builder 课表…", "info");
+    setStatus("Rechecking this plan against your current Schedule before saving…", "info");
     try {
+      await refreshExistingScheduleConflicts();
+      const conflictingKeys = new Set(
+        groups
+          .flatMap((group) => group.sections)
+          .filter((section) => section.existingScheduleConflict)
+          .map((section) => section.saveKey || section.crn),
+      );
+      const newlyConflicting = generatedResult.schedule.find((section) =>
+        conflictingKeys.has(section.saveKey || section.crn),
+      );
+      if (newlyConflicting) {
+        generatedResult = null;
+        refs.output.hidden = true;
+        renderCourseChoices();
+        throw new Error(
+          `${newlyConflicting.section} now conflicts with your current Schedule. Generate a new plan.`,
+        );
+      }
+      if (
+        generatedResult.hasWaitlist &&
+        !window.confirm(
+          "This plan contains a waitlist-only course. Do you still want to save it to the current Schedule Builder schedule?",
+        )
+      ) {
+        setStatus("Save canceled.", "info");
+        return;
+      }
+      setStatus("Saving the selected sections to the current Schedule Builder schedule…", "info");
       const response = await pageRequest("save_courses", {
         crns: generatedResult.schedule.map((section) => section.saveKey || section.crn),
       });
       if (!response.ok) {
-        throw new Error(response.error || "保存失败");
+        throw new Error(response.error || "Save failed");
       }
       const failed = (response.results || []).filter((item) => !item.ok);
       if (failed.length) {
         setStatus(
-          `部分课程未能保存：${failed.map((item) => `${item.crn} (${item.error})`).join("；")}`,
+          `Some courses could not be saved: ${failed.map((item) => `${item.crn} (${item.error})`).join("; ")}`,
           "error",
         );
       } else {
-        setStatus("方案已保存到当前 Schedule Builder 课表。请在注册前再次核对名额、先修要求和期末考试。", "success");
+        setStatus("The plan was saved to the current Schedule Builder schedule. Recheck seats, prerequisites, and final exams before registering.", "success");
       }
     } catch (error) {
-      setStatus(`保存失败：${error?.message || String(error)}`, "error");
+      setStatus(`Save failed: ${error?.message || String(error)}`, "error");
     } finally {
       setBusy(false);
     }
@@ -442,14 +523,26 @@
     if (!groups.length || busy) {
       return;
     }
-    const prompt = core.buildPrompt(groups, currentTermName());
-    const copied = await window.ASS_CLIPBOARD.copyText(prompt);
-    setStatus(
-      copied
-        ? `已复制 GPT Prompt（${prompt.length.toLocaleString()} 字符），可直接粘贴到 ChatGPT。`
-        : "复制失败，请检查浏览器的剪贴板权限。",
-      copied ? "success" : "error",
-    );
+    const selections = selectedInstructors();
+    setBusy(true);
+    setStatus("Refreshing current-schedule conflicts for the GPT prompt…", "info");
+    try {
+      await refreshExistingScheduleConflicts();
+      renderCourseChoices();
+      restoreInstructorSelections(selections);
+      const prompt = core.buildPrompt(groups, currentTermName());
+      const copied = await window.ASS_CLIPBOARD.copyText(prompt);
+      setStatus(
+        copied
+          ? `Copied the GPT prompt (${prompt.length.toLocaleString()} characters). You can paste it directly into ChatGPT.`
+          : "Copy failed. Check the browser's clipboard permission.",
+        copied ? "success" : "error",
+      );
+    } catch (error) {
+      setStatus(`Could not prepare the GPT prompt: ${error?.message || String(error)}`, "error");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function bindActions() {
@@ -467,18 +560,18 @@
     root.className = "ass-planner";
     root.innerHTML = `
       <div class="ass-planner__head">
-        <h2 class="ass-planner__title">智能自动排课</h2>
-        <p class="ass-planner__subtitle">批量搜索课程、比较 RateMyProfessors、排除 0/0 section，并生成无上课时间冲突的方案。</p>
+        <h2 class="ass-planner__title">Smart Schedule Planner</h2>
+        <p class="ass-planner__subtitle">Search courses in bulk, compare RateMyProfessors data, exclude 0/0 and current-schedule conflicts, and generate a conflict-free plan.</p>
       </div>
       <div class="ass-planner__body">
-        <label class="ass-planner__label" for="ass-planner-input">想选的所有课程</label>
-        <textarea id="ass-planner-input" class="ass-planner__input" placeholder="CHE002A, MAT 021A&#10;也可以每行一门课"></textarea>
-        <p class="ass-planner__hint">支持有无空格的课号；会使用当前 Schedule Builder 学期和实时名额。</p>
+        <label class="ass-planner__label" for="ass-planner-input">All courses you want to take</label>
+        <textarea id="ass-planner-input" class="ass-planner__input" placeholder="CHE002A, MAT 021A&#10;You can also enter one course per line"></textarea>
+        <p class="ass-planner__hint">Course codes work with or without spaces. The planner uses the current term, live seats, and your current Schedule.</p>
         <div class="ass-planner__actions">
-          <button type="button" class="ass-planner__btn ass-planner__btn--primary" data-ass-action="collect">搜索全部课程与教师</button>
-          <button type="button" class="ass-planner__btn" data-ass-action="manual" data-requires-data="1" disabled>按所选教师排课</button>
-          <button type="button" class="ass-planner__btn ass-planner__btn--gold" data-ass-action="auto" data-requires-data="1" disabled>评分优先自动排课</button>
-          <button type="button" class="ass-planner__btn" data-ass-action="copy" data-requires-data="1" disabled>复制 GPT 排课 Prompt</button>
+          <button type="button" class="ass-planner__btn ass-planner__btn--primary" data-ass-action="collect">Search All Courses & Professors</button>
+          <button type="button" class="ass-planner__btn" data-ass-action="manual" data-requires-data="1" disabled>Plan with Selected Professors</button>
+          <button type="button" class="ass-planner__btn ass-planner__btn--gold" data-ass-action="auto" data-requires-data="1" disabled>Auto-Plan by Rating</button>
+          <button type="button" class="ass-planner__btn" data-ass-action="copy" data-requires-data="1" disabled>Copy GPT Scheduling Prompt</button>
         </div>
         <div class="ass-planner__status" role="status" aria-live="polite"></div>
         <div class="ass-planner__courses"></div>
@@ -487,13 +580,13 @@
           <div class="ass-planner__warnings"></div>
           <div class="ass-planner__table-wrap">
             <table class="ass-planner__table">
-              <thead><tr><th>课程</th><th>Section</th><th>CRN</th><th>教师</th><th>RMP</th><th>名额</th><th>上课时间</th></tr></thead>
+              <thead><tr><th>Course</th><th>Section</th><th>CRN</th><th>Professor</th><th>RMP</th><th>Seats</th><th>Meetings</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
           <div class="ass-planner__save-row">
-            <button type="button" class="ass-planner__btn ass-planner__btn--primary" data-ass-action="save">保存本方案到 Schedule Builder</button>
-            <span class="ass-planner__hint">这里只保存课程，不会替你点击 Register。</span>
+            <button type="button" class="ass-planner__btn ass-planner__btn--primary" data-ass-action="save">Save This Plan to Schedule Builder</button>
+            <span class="ass-planner__hint">This saves courses only. It never clicks Register for you.</span>
           </div>
         </section>
       </div>

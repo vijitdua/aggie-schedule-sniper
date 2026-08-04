@@ -35,7 +35,7 @@
     throw new Error(`Schedule Builder ${name} API did not become ready.`);
   }
 
-  function plainCourseResult(raw, seats, seatError) {
+  function plainCourseResult(raw, seats, seatError, existingConflict) {
     return {
       course: {
         subjectCode: raw?.course?.subjectCode,
@@ -78,6 +78,8 @@
         ? { seatsAvail: seats.seatsAvail, waitCount: seats.waitCount }
         : null,
       seatError: seatError || null,
+      existingScheduleConflict: existingConflict?.bool === true,
+      existingScheduleConflictText: existingConflict?.text || null,
     };
   }
 
@@ -126,9 +128,32 @@
     }
   }
 
+  async function loadCurrentScheduleConflicts() {
+    const scheduleApi = await waitForPageApi("schedule", 15000);
+    if (
+      typeof scheduleApi.timeConflict?.Load !== "function" ||
+      typeof scheduleApi.timeConflict?.checkCourse !== "function"
+    ) {
+      throw new Error("Schedule Builder's current-schedule conflict API is unavailable.");
+    }
+    scheduleApi.timeConflict.Load();
+    return scheduleApi.timeConflict;
+  }
+
+  function checkRawCourseConflict(conflictApi, raw) {
+    const result = conflictApi.checkCourse(
+      Array.isArray(raw?.meeting) ? raw.meeting : [],
+    );
+    return {
+      bool: result?.bool === true,
+      text: String(result?.text || "").trim(),
+    };
+  }
+
   async function searchCourses(id, payload) {
     const searchApi = await waitForPageApi("search", 15000);
     await ensureUserReady();
+    const conflictApi = await loadCurrentScheduleConflicts();
     if (typeof searchApi.search !== "function") {
       throw new Error("Schedule Builder search function is unavailable.");
     }
@@ -148,19 +173,55 @@
       5,
       async (raw) => {
         const crn = String(raw?.course?.printCRN || raw?.course?.crn || "").trim();
+        const existingConflict = checkRawCourseConflict(conflictApi, raw);
         if (!crn || crn === "@" || typeof searchApi.fetchSeatAvailability !== "function") {
-          return plainCourseResult(raw, null, crn === "@" ? "Consent of instructor required" : null);
+          return plainCourseResult(
+            raw,
+            null,
+            crn === "@" ? "Consent of instructor required" : null,
+            existingConflict,
+          );
         }
         try {
           const seats = await searchApi.fetchSeatAvailability(crn, window.termCode);
-          return plainCourseResult(raw, seats, null);
+          return plainCourseResult(raw, seats, null, existingConflict);
         } catch (error) {
-          return plainCourseResult(raw, null, error?.message || String(error));
+          return plainCourseResult(
+            raw,
+            null,
+            error?.message || String(error),
+            existingConflict,
+          );
         }
       },
       (completed, total) => post(id, "progress", { stage: "seats", completed, total }),
     );
     return { results: withSeats };
+  }
+
+  async function checkExistingScheduleConflicts(payload) {
+    const conflictApi = await loadCurrentScheduleConflicts();
+    const results = [];
+    for (const requestedKey of payload?.courseKeys || []) {
+      const courseKey = String(requestedKey || "").trim();
+      const raw = rememberedByCrn.get(courseKey);
+      if (!raw) {
+        results.push({
+          courseKey,
+          ok: false,
+          error: "Course data is no longer available; search again.",
+        });
+        continue;
+      }
+      const conflict = checkRawCourseConflict(conflictApi, raw);
+      results.push({
+        courseKey,
+        ok: true,
+        conflict: conflict.bool,
+        text: conflict.text,
+      });
+    }
+    return { results };
   }
 
   async function saveCourses(payload) {
@@ -211,6 +272,8 @@
           result = { ready: !!window.search };
         } else if (message.action === "search_courses") {
           result = await searchCourses(message.id, message.payload);
+        } else if (message.action === "check_existing_conflicts") {
+          result = await checkExistingScheduleConflicts(message.payload);
         } else if (message.action === "save_courses") {
           result = await saveCourses(message.payload);
         } else {

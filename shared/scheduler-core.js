@@ -159,6 +159,8 @@
       waitlistCount,
       availability: classifyAvailability(openSeats, waitlistCount),
       seatError: normalizeText(raw?.seatError),
+      existingScheduleConflict: raw?.existingScheduleConflict === true,
+      existingScheduleConflictText: normalizeText(raw?.existingScheduleConflictText),
     };
   }
 
@@ -231,7 +233,7 @@
       }
       const candidates = [];
       for (const section of group.sections || []) {
-        if (section.availability === "unavailable") {
+        if (section.availability === "unavailable" || section.existingScheduleConflict) {
           continue;
         }
         const instructor = bestInstructor(section, requiredName);
@@ -355,15 +357,15 @@
 
   function formatAvailability(section) {
     if (section.availability === "unavailable") {
-      return "不可用（Open 0 / Waitlist 0）";
+      return "Unavailable (Open 0 / Waitlist 0)";
     }
     if (section.availability === "waitlist") {
-      return `仅 Waitlist（Open 0 / Waitlist ${section.waitlistCount}）`;
+      return `Waitlist only (Open 0 / Waitlist ${section.waitlistCount})`;
     }
     if (section.availability === "open") {
       return `Open ${section.openSeats} / Waitlist ${section.waitlistCount ?? "?"}`;
     }
-    return "名额状态未知";
+    return "Seat status unknown";
   }
 
   function formatRmp(instructor) {
@@ -376,18 +378,18 @@
     const reviews = numberOrNull(instructor.rmp.reviewCount);
     return [
       `RMP ${rating.toFixed(1)}/5`,
-      difficulty == null ? null : `难度 ${difficulty.toFixed(1)}/5`,
-      wouldTake == null || wouldTake < 0 ? null : `${Math.round(wouldTake)}% 愿意再选`,
-      reviews == null ? null : `${reviews} 条评价`,
-    ].filter(Boolean).join("，");
+      difficulty == null ? null : `difficulty ${difficulty.toFixed(1)}/5`,
+      wouldTake == null || wouldTake < 0 ? null : `${Math.round(wouldTake)}% would take again`,
+      reviews == null ? null : `${reviews} reviews`,
+    ].filter(Boolean).join(", ");
   }
 
   function buildPrompt(groups, termName) {
     const lines = [
-      "请根据下面的 UC Davis 课程数据，为我设计没有上课时间冲突的课表。",
-      termName ? `学期：${termName}` : null,
-      "硬性规则：每门课恰好选择一个 section；Open/Waitlist 都为 0 的 section 绝对不要选；如果只能选择 Waitlist，请醒目标注风险；同时说明 TBA 时间带来的不确定性。",
-      "优化偏好：优先 Open section，其次优先 RateMyProfessors 评分更高、评价数更可靠的教授。请给出首选方案和至少一个可行备选（如有）。",
+      "Using the UC Davis course data below, design a schedule with no class-time conflicts.",
+      termName ? `Term: ${termName}` : null,
+      "Hard constraints: choose exactly one section for every course; never select a section with Open 0 and Waitlist 0; never select a section marked as conflicting with my current Schedule Builder schedule; clearly flag any waitlist-only choice; explain any uncertainty caused by TBA meetings.",
+      "Optimization preferences: prioritize open sections, then professors with stronger RateMyProfessors ratings and more reliable review counts. Provide a preferred schedule and at least one feasible alternative when possible.",
       "",
     ].filter((line) => line != null);
 
@@ -401,17 +403,20 @@
           }
         }
       }
-      lines.push("教授：");
+      lines.push("Professors:");
       for (const instructor of instructors.values()) {
         lines.push(`- ${instructor.displayName} — ${formatRmp(instructor)}`);
       }
-      lines.push("Sections：");
+      lines.push("Sections:");
       for (const section of group.sections || []) {
         const meetings = section.meetings.length
-          ? section.meetings.map(formatMeeting).join("；")
+          ? section.meetings.map(formatMeeting).join("; ")
           : "TBA";
+        const existingConflict = section.existingScheduleConflict
+          ? ` | CONFLICTS WITH CURRENT SCHEDULE${section.existingScheduleConflictText ? `: ${section.existingScheduleConflictText}` : ""}`
+          : "";
         lines.push(
-          `- ${section.section || group.courseKey} | CRN ${section.crn || "N/A"} | ${formatAvailability(section)} | 教授 ${section.instructors.map((item) => item.displayName).join(" / ")} | ${meetings}${section.finalExam ? ` | Final: ${section.finalExam}` : ""}`,
+          `- ${section.section || group.courseKey} | CRN ${section.crn || "N/A"} | ${formatAvailability(section)} | Professor ${section.instructors.map((item) => item.displayName).join(" / ")} | ${meetings}${section.finalExam ? ` | Final: ${section.finalExam}` : ""}${existingConflict}`,
         );
       }
       lines.push("");

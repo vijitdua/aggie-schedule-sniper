@@ -13,6 +13,7 @@ function section({
   availability = "open",
   openSeats = availability === "open" ? 1 : 0,
   waitlistCount = availability === "waitlist" ? 1 : 0,
+  existingScheduleConflict = false,
 }) {
   return {
     courseKey,
@@ -38,6 +39,7 @@ function section({
     availability,
     openSeats,
     waitlistCount,
+    existingScheduleConflict,
   };
 }
 
@@ -89,10 +91,14 @@ test("normalizes the Schedule Builder result shape captured in the CHE 002A arch
     ],
     seats: { seatsAvail: "0", waitCount: "0" },
     finalExam: { examDate: "December, 07 2026 13:00:00" },
+    existingScheduleConflict: true,
+    existingScheduleConflictText: "This course has a time conflict with Existing Course",
   });
   assert.equal(normalized.courseKey, "CHE 002A");
   assert.equal(normalized.crn, "24335");
   assert.equal(normalized.availability, "unavailable");
+  assert.equal(normalized.existingScheduleConflict, true);
+  assert.match(normalized.existingScheduleConflictText, /Existing Course/);
   assert.deepEqual(normalized.meetings[0].days, ["T", "R"]);
   assert.equal(normalized.meetings[0].startMinutes, 13 * 60 + 40);
 });
@@ -212,6 +218,38 @@ test("schedule generation never selects a 0/0 section", () => {
   assert.equal(result.reason, "no_eligible_sections");
 });
 
+test("schedule generation excludes sections that conflict with the current Schedule", () => {
+  const groups = [
+    {
+      courseKey: "CHE 002A",
+      sections: [
+        section({
+          courseKey: "CHE 002A",
+          section: "A01",
+          instructor: "Higher Rating",
+          rating: 5,
+          days: ["M"],
+          start: 600,
+          end: 660,
+          existingScheduleConflict: true,
+        }),
+        section({
+          courseKey: "CHE 002A",
+          section: "A02",
+          instructor: "No Conflict",
+          rating: 3.5,
+          days: ["T"],
+          start: 600,
+          end: 660,
+        }),
+      ],
+    },
+  ];
+  const result = core.generateSchedule(groups, { autoRatings: true });
+  assert.equal(result.ok, true);
+  assert.equal(result.schedule[0].selectedInstructor.displayName, "No Conflict");
+});
+
 test("prompt includes RMP, seat status, CRN, and meeting data", () => {
   const groups = [
     {
@@ -226,6 +264,7 @@ test("prompt includes RMP, seat status, CRN, and meeting data", () => {
           days: ["T", "R"],
           start: 820,
           end: 900,
+          existingScheduleConflict: true,
         }),
       ],
     },
@@ -235,4 +274,6 @@ test("prompt includes RMP, seat status, CRN, and meeting data", () => {
   assert.match(prompt, /RMP 4\.5\/5/);
   assert.match(prompt, /CRN CHE 002A-A01/);
   assert.match(prompt, /TR 1:40 PM-3:00 PM/);
+  assert.match(prompt, /current Schedule Builder schedule/);
+  assert.match(prompt, /CONFLICTS WITH CURRENT SCHEDULE/);
 });
