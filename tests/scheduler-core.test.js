@@ -250,7 +250,158 @@ test("schedule generation excludes sections that conflict with the current Sched
   assert.equal(result.schedule[0].selectedInstructor.displayName, "No Conflict");
 });
 
-test("prompt includes RMP, seat status, CRN, and meeting data", () => {
+test("time and rating priority use opposite primary weights", () => {
+  const groups = [
+    {
+      courseKey: "CHE 002A",
+      sections: [
+        section({
+          courseKey: "CHE 002A",
+          section: "A01",
+          instructor: "Highest Rating",
+          rating: 5,
+          days: ["T"],
+          start: 780,
+          end: 840,
+        }),
+        section({
+          courseKey: "CHE 002A",
+          section: "A02",
+          instructor: "Best Time",
+          rating: 2,
+          days: ["M"],
+          start: 600,
+          end: 660,
+        }),
+      ],
+    },
+  ];
+  const preferences = {
+    preferredDays: ["M"],
+    timeBlocks: { morning: "preferred", afternoon: "avoid" },
+  };
+  const byTime = core.generateSchedule(groups, {
+    priority: "time",
+    preferences,
+  });
+  const byRating = core.generateSchedule(groups, {
+    priority: "rating",
+    preferences,
+  });
+  assert.equal(byTime.schedule[0].selectedInstructor.displayName, "Best Time");
+  assert.equal(byRating.schedule[0].selectedInstructor.displayName, "Highest Rating");
+});
+
+test("each automatic priority keeps the other factor as a tie-breaker", () => {
+  const ratingTie = [
+    {
+      courseKey: "CHE 002A",
+      sections: [
+        section({
+          courseKey: "CHE 002A",
+          section: "A01",
+          instructor: "Same Rating Bad Time",
+          rating: 4,
+          days: ["T"],
+          start: 780,
+          end: 840,
+        }),
+        section({
+          courseKey: "CHE 002A",
+          section: "A02",
+          instructor: "Same Rating Good Time",
+          rating: 4,
+          days: ["M"],
+          start: 600,
+          end: 660,
+        }),
+      ],
+    },
+  ];
+  const timeTie = [
+    {
+      courseKey: "MAT 021A",
+      sections: [
+        section({
+          courseKey: "MAT 021A",
+          section: "A01",
+          instructor: "Lower Rating",
+          rating: 2,
+          days: ["M"],
+          start: 600,
+          end: 660,
+        }),
+        section({
+          courseKey: "MAT 021A",
+          section: "A02",
+          instructor: "Higher Rating",
+          rating: 4.8,
+          days: ["M"],
+          start: 600,
+          end: 660,
+        }),
+      ],
+    },
+  ];
+  const preferences = {
+    preferredDays: ["M"],
+    timeBlocks: { morning: "preferred", afternoon: "avoid" },
+  };
+  const byRating = core.generateSchedule(ratingTie, {
+    priority: "rating",
+    preferences,
+  });
+  const byTime = core.generateSchedule(timeTie, {
+    priority: "time",
+    preferences,
+  });
+  assert.equal(byRating.schedule[0].selectedInstructor.displayName, "Same Rating Good Time");
+  assert.equal(byTime.schedule[0].selectedInstructor.displayName, "Higher Rating");
+});
+
+test("Never time blocks are hard exclusions in every planning mode", () => {
+  const groups = [
+    {
+      courseKey: "CHE 002A",
+      sections: [
+        section({
+          courseKey: "CHE 002A",
+          section: "A01",
+          instructor: "Morning Professor",
+          rating: 5,
+          days: ["M"],
+          start: 600,
+          end: 660,
+        }),
+        section({
+          courseKey: "CHE 002A",
+          section: "A02",
+          instructor: "Afternoon Professor",
+          rating: 3,
+          days: ["M"],
+          start: 780,
+          end: 840,
+        }),
+      ],
+    },
+  ];
+  const preferences = { timeBlocks: { morning: "never" } };
+  for (const priority of ["time", "rating"]) {
+    const result = core.generateSchedule(groups, { priority, preferences });
+    assert.equal(result.ok, true);
+    assert.equal(result.schedule[0].selectedInstructor.displayName, "Afternoon Professor");
+  }
+  const manual = core.generateSchedule(groups, {
+    priority: "manual",
+    preferences,
+    selections: new Map([["CHE 002A", "Morning Professor"]]),
+  });
+  assert.equal(manual.ok, false);
+  assert.equal(manual.reason, "no_eligible_sections");
+  assert.equal(manual.blockedByTimePreferences, true);
+});
+
+test("prompt includes RMP, seat status, meetings, and scheduling preferences", () => {
   const groups = [
     {
       courseKey: "CHE 002A",
@@ -269,11 +420,16 @@ test("prompt includes RMP, seat status, CRN, and meeting data", () => {
       ],
     },
   ];
-  const prompt = core.buildPrompt(groups, "Fall 2026");
+  const prompt = core.buildPrompt(groups, "Fall 2026", {
+    preferredDays: ["T", "R"],
+    timeBlocks: { morning: "preferred", evening: "never" },
+  });
   assert.match(prompt, /CHE 002A/);
   assert.match(prompt, /RMP 4\.5\/5/);
   assert.match(prompt, /CRN CHE 002A-A01/);
   assert.match(prompt, /TR 1:40 PM-3:00 PM/);
   assert.match(prompt, /current Schedule Builder schedule/);
   assert.match(prompt, /CONFLICTS WITH CURRENT SCHEDULE/);
+  assert.match(prompt, /Preferred weekdays: Tuesday, Thursday/);
+  assert.match(prompt, /Never schedule in: Evening/);
 });

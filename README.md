@@ -30,18 +30,19 @@ Chrome extension for UC Davis students using Schedule Builder. Builds conflict-f
 
 1. Open Schedule Builder on `my.ucdavis.edu` or `schedulebuilder.ucdavis.edu`.
 2. A floating **Aggie Sniper ⚙** bar appears near your pass times.
-3. Click it to open settings (auto-register, countdown).
+3. Click it to open settings, including the Smart Schedule Planner visibility toggle.
 4. On first visit, a short onboarding modal explains how the app works (stay awake, keep the tab open, stay online).
 
 ### Smart schedule planner
 
 1. Enter all desired courses in the **Smart auto scheduler** on Schedule Builder, for example `CHE002A, MAT 021A`.
 2. Search all sections and load live Open/Waitlist status plus RateMyProfessors data.
-3. Pick one professor per course, or let the extension optimize for Open seats and professor ratings. Sections that conflict with courses already in your current Schedule are excluded.
-4. Review the conflict-free result, then optionally save those sections to the current Schedule Builder schedule.
-5. Use **Copy GPT scheduling prompt** to ask ChatGPT for a more personalized plan with the complete section dataset.
+3. Open **Advanced Settings** to choose preferred weekdays and mark time blocks as Preferred, Neutral, Less preferred, or Never.
+4. Pick one professor per course, or use **Time Priority** or **Rating Priority**. Each automatic mode gives its named factor the larger weight while still considering the other factor.
+5. Review the conflict-free result, then optionally save those sections to the current Schedule Builder schedule.
+6. Use **Copy GPT scheduling prompt** to ask ChatGPT for a more personalized plan with the complete section dataset and your scheduling preferences.
 
-Sections showing `Open 0 / Waitlist 0` are excluded. Waitlist-only and TBA results remain visibly flagged and require user review.
+Sections showing `Open 0 / Waitlist 0`, conflicts with your current Schedule, or overlap with a Never time block are excluded. Waitlist-only and TBA results remain visibly flagged and require user review.
 
 ## Branches
 

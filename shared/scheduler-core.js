@@ -18,6 +18,20 @@
     ["friday", "F"],
     ["saturday", "S"],
   ];
+  const WEEKDAY_OPTIONS = [
+    { key: "M", label: "Monday" },
+    { key: "T", label: "Tuesday" },
+    { key: "W", label: "Wednesday" },
+    { key: "R", label: "Thursday" },
+    { key: "F", label: "Friday" },
+  ];
+  const TIME_BLOCKS = [
+    { key: "earlyMorning", label: "Early morning", rangeLabel: "Before 9:00 AM", startMinutes: 0, endMinutes: 540 },
+    { key: "morning", label: "Morning", rangeLabel: "9:00 AM–12:00 PM", startMinutes: 540, endMinutes: 720 },
+    { key: "afternoon", label: "Afternoon", rangeLabel: "12:00–5:00 PM", startMinutes: 720, endMinutes: 1020 },
+    { key: "evening", label: "Evening", rangeLabel: "After 5:00 PM", startMinutes: 1020, endMinutes: 1440 },
+  ];
+  const TIME_PREFERENCE_LEVELS = ["preferred", "neutral", "avoid", "never"];
 
   function normalizeText(value) {
     return String(value || "").replace(/\s+/g, " ").trim();
@@ -206,6 +220,97 @@
     return selections[courseKey] || null;
   }
 
+  function normalizeSchedulerPreferences(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const preferredDays = [...new Set(
+      (Array.isArray(source.preferredDays) ? source.preferredDays : [])
+        .map((day) => String(day || "").toUpperCase())
+        .filter((day) => WEEKDAY_OPTIONS.some((option) => option.key === day)),
+    )];
+    const timeBlocks = {};
+    for (const block of TIME_BLOCKS) {
+      const level = String(source.timeBlocks?.[block.key] || "neutral").toLowerCase();
+      timeBlocks[block.key] = TIME_PREFERENCE_LEVELS.includes(level)
+        ? level
+        : "neutral";
+    }
+    return { preferredDays, timeBlocks };
+  }
+
+  function overlapMinutes(startA, endA, startB, endB) {
+    return Math.max(0, Math.min(endA, endB) - Math.max(startA, startB));
+  }
+
+  function timePreferenceScore(section, rawPreferences) {
+    const preferences = normalizeSchedulerPreferences(rawPreferences);
+    const preferredDays = new Set(preferences.preferredDays);
+    const usesDayPreferences = preferredDays.size > 0;
+    const levelQuality = {
+      preferred: 1,
+      neutral: 0.5,
+      avoid: 0,
+    };
+    let scheduledMinutes = 0;
+    let preferredDayMinutes = 0;
+    let weightedTimeMinutes = 0;
+
+    for (const meeting of section?.meetings || []) {
+      if (
+        meeting?.isTba ||
+        meeting?.startMinutes == null ||
+        meeting?.endMinutes == null ||
+        meeting.endMinutes <= meeting.startMinutes
+      ) {
+        continue;
+      }
+      const days = Array.isArray(meeting.days) ? meeting.days : [];
+      for (const day of days) {
+        const duration = meeting.endMinutes - meeting.startMinutes;
+        scheduledMinutes += duration;
+        if (preferredDays.has(day)) {
+          preferredDayMinutes += duration;
+        }
+        for (const block of TIME_BLOCKS) {
+          const overlap = overlapMinutes(
+            meeting.startMinutes,
+            meeting.endMinutes,
+            block.startMinutes,
+            block.endMinutes,
+          );
+          if (!overlap) {
+            continue;
+          }
+          const level = preferences.timeBlocks[block.key];
+          if (level === "never") {
+            return {
+              hardBlocked: true,
+              quality: 0,
+              dayQuality: usesDayPreferences ? 0 : 0.5,
+              timeQuality: 0,
+            };
+          }
+          weightedTimeMinutes += overlap * levelQuality[level];
+        }
+      }
+    }
+
+    if (!scheduledMinutes) {
+      return { hardBlocked: false, quality: 0.5, dayQuality: 0.5, timeQuality: 0.5 };
+    }
+    const dayQuality = usesDayPreferences
+      ? preferredDayMinutes / scheduledMinutes
+      : 0.5;
+    const timeQuality = weightedTimeMinutes / scheduledMinutes;
+    return {
+      hardBlocked: false,
+      quality: usesDayPreferences
+        ? dayQuality * 0.35 + timeQuality * 0.65
+        : timeQuality,
+      dayQuality,
+      timeQuality,
+    };
+  }
+
   function compareCandidate(a, b) {
     if (a._score !== b._score) {
       return b._score - a._score;
@@ -217,21 +322,27 @@
 
   function generateSchedule(groups, options) {
     const sourceGroups = Array.isArray(groups) ? groups : [];
-    const autoRatings = !!options?.autoRatings;
+    const priority = options?.priority || (options?.autoRatings ? "rating" : "manual");
+    const autoSelectInstructor = priority === "rating" || priority === "time";
     const selections = options?.selections || null;
+    const preferences = normalizeSchedulerPreferences(options?.preferences);
     const maxExplored = Number(options?.maxExplored) || 250000;
     const courseCount = sourceGroups.length;
-    const ratingMaxTotal = courseCount * 5001;
-    const knownAvailableWeight = ratingMaxTotal + 1;
-    const openWeight = courseCount * knownAvailableWeight + ratingMaxTotal + 1;
+    const qualityMaxPerCourse = 10100;
+    const qualityMaxTotal = courseCount * qualityMaxPerCourse;
+    const knownAvailableWeight = qualityMaxTotal + 1;
+    const openWeight = courseCount * knownAvailableWeight + qualityMaxTotal + 1;
     const prepared = [];
 
     for (const group of sourceGroups) {
-      const requiredName = autoRatings ? null : selectedNameFor(selections, group.courseKey);
-      if (!autoRatings && !requiredName) {
+      const requiredName = autoSelectInstructor
+        ? null
+        : selectedNameFor(selections, group.courseKey);
+      if (!autoSelectInstructor && !requiredName) {
         return { ok: false, reason: "missing_instructor", courseKey: group.courseKey };
       }
       const candidates = [];
+      let blockedByTimePreferences = false;
       for (const section of group.sections || []) {
         if (section.availability === "unavailable" || section.existingScheduleConflict) {
           continue;
@@ -240,8 +351,18 @@
         if (!instructor) {
           continue;
         }
+        const timeScore = timePreferenceScore(section, preferences);
+        if (timeScore.hardBlocked) {
+          blockedByTimePreferences = true;
+          continue;
+        }
         const rating = ratingValue(instructor);
-        const ratingScore = rating >= 0 ? Math.round(rating * 1000) + 1 : 0;
+        const ratingQuality = rating >= 0 ? Math.min(1, Math.max(0, rating / 5)) : 0;
+        const ratingFirst = priority === "rating";
+        const qualityScore = Math.round(
+          (ratingFirst ? ratingQuality : timeScore.quality) * 10000 +
+          (ratingFirst ? timeScore.quality : ratingQuality) * 100,
+        );
         const availabilityScore =
           section.availability === "open"
             ? openWeight
@@ -252,7 +373,8 @@
           ...section,
           selectedInstructor: instructor,
           selectedRating: rating >= 0 ? rating : null,
-          _score: availabilityScore + ratingScore,
+          timePreferenceQuality: timeScore.quality,
+          _score: availabilityScore + qualityScore,
         });
       }
       if (!candidates.length) {
@@ -261,6 +383,7 @@
           reason: "no_eligible_sections",
           courseKey: group.courseKey,
           instructor: requiredName,
+          blockedByTimePreferences,
         };
       }
       candidates.sort(compareCandidate);
@@ -331,6 +454,7 @@
       explored,
       truncated,
       optimal: foundUpperBound && !truncated,
+      priority,
       hasWaitlist: schedule.some((item) => item.availability === "waitlist"),
       hasUnknownSeats: schedule.some((item) => item.availability === "unknown"),
       hasTbaMeetings: schedule.some((item) => item.meetings.some((meeting) => meeting.isTba)),
@@ -384,12 +508,33 @@
     ].filter(Boolean).join(", ");
   }
 
-  function buildPrompt(groups, termName) {
+  function formatSchedulerPreferences(rawPreferences) {
+    const preferences = normalizeSchedulerPreferences(rawPreferences);
+    const preferredDayLabels = preferences.preferredDays.map(
+      (day) => WEEKDAY_OPTIONS.find((option) => option.key === day)?.label || day,
+    );
+    const levels = { preferred: [], avoid: [], never: [] };
+    for (const block of TIME_BLOCKS) {
+      const level = preferences.timeBlocks[block.key];
+      if (levels[level]) {
+        levels[level].push(`${block.label} (${block.rangeLabel})`);
+      }
+    }
+    return [
+      `Preferred weekdays: ${preferredDayLabels.length ? preferredDayLabels.join(", ") : "No weekday preference"}.`,
+      `Preferred time blocks: ${levels.preferred.length ? levels.preferred.join(", ") : "None"}.`,
+      `Less-preferred time blocks: ${levels.avoid.length ? levels.avoid.join(", ") : "None"}.`,
+      `Never schedule in: ${levels.never.length ? levels.never.join(", ") : "None"}.`,
+    ];
+  }
+
+  function buildPrompt(groups, termName, rawPreferences) {
     const lines = [
       "Using the UC Davis course data below, design a schedule with no class-time conflicts.",
       termName ? `Term: ${termName}` : null,
-      "Hard constraints: choose exactly one section for every course; never select a section with Open 0 and Waitlist 0; never select a section marked as conflicting with my current Schedule Builder schedule; clearly flag any waitlist-only choice; explain any uncertainty caused by TBA meetings.",
+      "Hard constraints: choose exactly one section for every course; never select a section with Open 0 and Waitlist 0; never select a section marked as conflicting with my current Schedule Builder schedule; treat every time block listed under Never schedule in as a hard exclusion; clearly flag any waitlist-only choice; explain any uncertainty caused by TBA meetings.",
       "Optimization preferences: prioritize open sections, then professors with stronger RateMyProfessors ratings and more reliable review counts. Provide a preferred schedule and at least one feasible alternative when possible.",
+      ...formatSchedulerPreferences(rawPreferences),
       "",
     ].filter((line) => line != null);
 
@@ -428,6 +573,8 @@
     normalizeCourseCode,
     parseCourseCodes,
     normalizeSearchResult,
+    normalizeSchedulerPreferences,
+    timePreferenceScore,
     classifyAvailability,
     meetingsConflict,
     generateSchedule,
@@ -435,5 +582,8 @@
     formatAvailability,
     formatRmp,
     buildPrompt,
+    WEEKDAY_OPTIONS,
+    TIME_BLOCKS,
+    TIME_PREFERENCE_LEVELS,
   };
 });

@@ -6,6 +6,7 @@ const sniperToggle = document.getElementById("sniperToggle");
 const countdownToggle = document.getElementById("countToggle");
 const waitingHelpersToggle = document.getElementById("waitingHelpersToggle");
 const professorRatingsToggle = document.getElementById("professorRatingsToggle");
+const smartPlannerToggle = document.getElementById("smartPlannerToggle");
 const exportCalendarBtn = document.getElementById("exportCalendarBtn");
 const modeBadge = document.getElementById("modeBadge");
 const shareBtn = document.getElementById("shareBtn");
@@ -24,6 +25,7 @@ const devAutoRegisterToggle = document.getElementById("devAutoRegisterToggle");
 const devShowCountdownToggle = document.getElementById("devShowCountdownToggle");
 const devKeepLoggedInToggle = document.getElementById("devKeepLoggedInToggle");
 const devProfessorRatingsToggle = document.getElementById("devProfessorRatingsToggle");
+const devSmartPlannerToggle = document.getElementById("devSmartPlannerToggle");
 const isEmbedded = new URLSearchParams(location.search).get("embedded") === "1";
 const isDeveloperPage =
   new URLSearchParams(location.search).get("developer") === "1";
@@ -34,6 +36,7 @@ const DEFAULT_SETTINGS = {
   keepSessionAlive: true,
   keepScreenAwake: true,
   showProfessorRatings: true,
+  showSmartSchedulePlanner: true,
 };
 
 let snackbarTimer = 0;
@@ -200,7 +203,8 @@ function initializeDevUserToggles() {
     !devAutoRegisterToggle ||
     !devShowCountdownToggle ||
     !devKeepLoggedInToggle ||
-    !devProfessorRatingsToggle
+    !devProfessorRatingsToggle ||
+    !devSmartPlannerToggle
   ) {
     return;
   }
@@ -210,6 +214,7 @@ function initializeDevUserToggles() {
     devShowCountdownToggle.checked = !!saved.showCountdown;
     devKeepLoggedInToggle.checked = isWaitingHelpersEnabled(saved);
     devProfessorRatingsToggle.checked = saved.showProfessorRatings !== false;
+    devSmartPlannerToggle.checked = saved.showSmartSchedulePlanner !== false;
   };
 
   chrome.storage.sync.get(DEFAULT_SETTINGS, applySyncSettings);
@@ -229,6 +234,12 @@ function initializeDevUserToggles() {
   devProfessorRatingsToggle.addEventListener("change", () => {
     chrome.storage.sync.set({
       showProfessorRatings: devProfessorRatingsToggle.checked,
+    });
+  });
+
+  devSmartPlannerToggle.addEventListener("change", () => {
+    chrome.storage.sync.set({
+      showSmartSchedulePlanner: devSmartPlannerToggle.checked,
     });
   });
 
@@ -413,6 +424,9 @@ function initializePopup() {
     if (professorRatingsToggle) {
       professorRatingsToggle.checked = saved.showProfessorRatings !== false;
     }
+    if (smartPlannerToggle) {
+      smartPlannerToggle.checked = saved.showSmartSchedulePlanner !== false;
+    }
     updateModeBadge();
   });
 
@@ -438,11 +452,23 @@ function initializePopup() {
     updateModeBadge();
   });
 
+  smartPlannerToggle?.addEventListener("change", () => {
+    chrome.storage.sync.set({
+      showSmartSchedulePlanner: smartPlannerToggle.checked,
+    });
+    updateModeBadge();
+  });
+
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "sync" || !changes.showProfessorRatings || !professorRatingsToggle) {
+    if (areaName !== "sync") {
       return;
     }
-    professorRatingsToggle.checked = changes.showProfessorRatings.newValue !== false;
+    if (changes.showProfessorRatings && professorRatingsToggle) {
+      professorRatingsToggle.checked = changes.showProfessorRatings.newValue !== false;
+    }
+    if (changes.showSmartSchedulePlanner && smartPlannerToggle) {
+      smartPlannerToggle.checked = changes.showSmartSchedulePlanner.newValue !== false;
+    }
   });
 
   shareBtn.addEventListener("click", () => {

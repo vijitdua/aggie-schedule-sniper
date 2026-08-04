@@ -56,6 +56,7 @@
         keepSessionAlive: true,
         keepScreenAwake: true,
         showProfessorRatings: true,
+        showSmartSchedulePlanner: true,
       },
       selectedPassId: null,
       cachedRegisterButton: null,

@@ -73,6 +73,17 @@
           <span class="setting-tooltip" id="professorRatingsTip" role="tooltip">Shows rating, would-take-again, and difficulty below instructor names in search results and your saved schedule.</span>
         </span>
       </section>
+
+      <section class="setting-row">
+        <label class="switch" aria-label="Toggle Smart Schedule Planner">
+          <input type="checkbox" id="smartPlannerToggle" />
+          <span class="slider"></span>
+        </label>
+        <span class="label-wrap" tabindex="0" aria-describedby="smartPlannerTip">
+          <span class="label">Smart Schedule Planner</span>
+          <span class="setting-tooltip" id="smartPlannerTip" role="tooltip">Shows the bulk course planner, professor comparison, and time- or rating-priority scheduling tools in Search for Courses.</span>
+        </span>
+      </section>
     </div>
 
     <section class="export-section">
@@ -218,6 +229,16 @@
           <span class="dev-toggle-label-wrap" tabindex="0" aria-describedby="devProfessorRatingsTip">
             <span class="dev-toggle-label">RateMyProfessors reviews</span>
             <span class="setting-tooltip dev-field-tooltip" id="devProfessorRatingsTip" role="tooltip">Shows rating, would-take-again, and difficulty below instructor names in search results and your saved schedule.</span>
+          </span>
+        </label>
+        <label class="dev-toggle-row">
+          <span class="switch">
+            <input type="checkbox" id="devSmartPlannerToggle" />
+            <span class="slider"></span>
+          </span>
+          <span class="dev-toggle-label-wrap" tabindex="0" aria-describedby="devSmartPlannerTip">
+            <span class="dev-toggle-label">Smart Schedule Planner</span>
+            <span class="setting-tooltip dev-field-tooltip" id="devSmartPlannerTip" role="tooltip">Shows the bulk course planner and schedule optimizer in Search for Courses.</span>
           </span>
         </label>
       </div>

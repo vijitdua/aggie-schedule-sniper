@@ -14,6 +14,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Strong Waitlist-only/TBA warnings, automatic exclusion of `Open 0 / Waitlist 0` sections, and one-click saving of a generated plan to the current schedule.
 - One-click GPT prompt export containing all sections, meeting times, seat status, professors, and RMP data.
 - Unit tests for course-code parsing, seat classification, conflict detection, optimization, and prompt generation.
+- Popup and developer-menu toggles to show or hide Smart Schedule Planner immediately.
+- Planner Advanced Settings for preferred weekdays and Preferred, Neutral, Less preferred, or Never time blocks.
+- Time Priority and Rating Priority automatic planning modes; each uses the other dimension as a lower-weight tie-breaker while keeping seat and conflict rules as hard constraints.
 
 ### Changed
 

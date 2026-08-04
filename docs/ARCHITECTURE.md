@@ -125,7 +125,7 @@ content/50-bootstrap.js
 
 ### Settings, pass times, and automatic registration
 
-1. The popup stores `autoRegister`, `showCountdown`, `keepSessionAlive`, `keepScreenAwake`, and `showProfessorRatings` in `chrome.storage.sync`.
+1. The popup stores `autoRegister`, `showCountdown`, `keepSessionAlive`, `keepScreenAwake`, `showProfessorRatings`, and `showSmartSchedulePlanner` in `chrome.storage.sync`.
 2. `50-bootstrap.js` loads those values and polls every `renderIntervalMs` (500 ms by default).
 3. `20-pass-times.js` reads visible pass-time text and parses Pacific timestamps. Parsed results are cached briefly to tolerate transient DOM rerenders.
 4. A pass becomes active only after the current page instance observes its opening time. This guards against immediately clicking after opening an already-active pass page.
@@ -176,11 +176,13 @@ sequenceDiagram
   RMP-->>UI: Cached or fresh ratings
   UI-->>User: Professor choices and section status
 
-  User->>UI: Generate plan
+  User->>UI: Set weekday/time preferences
+  UI->>UI: Persist assSchedulerPreferences
+  User->>UI: Generate manual, time-priority, or rating-priority plan
   UI->>Bridge: check_existing_conflicts
   Bridge->>SB: Reload current Schedule and recheck every section
   Bridge-->>UI: Fresh conflict results
-  UI->>Core: Courses, professor choices, seats, meetings, conflicts
+  UI->>Core: Courses, priority, preferences, seats, meetings, conflicts
   Core-->>UI: Best conflict-free combination or failure reason
   UI-->>User: Plan, waitlist warnings, and TBA warnings
 
@@ -196,9 +198,12 @@ Planner rules and priorities:
 2. `Open 0 / Waitlist 0` sections are hard-excluded.
 3. Sections conflicting with the current Schedule Builder schedule are hard-excluded.
 4. Remaining sections must not overlap one another on any meeting day.
-5. Open sections rank above waitlist-only sections; known availability ranks above unknown availability.
-6. Within the availability constraints, higher RateMyProfessors ratings improve the score.
-7. Search uses branch-and-bound with a 250,000-step default exploration ceiling and reports when a result may not be globally optimal.
+5. Sections overlapping a time block marked `Never` are hard-excluded. TBA meetings cannot be evaluated against this rule and remain visibly warned.
+6. Open sections rank above waitlist-only sections; known availability ranks above unknown availability. These availability tiers dominate every preference score.
+7. Time quality combines duration-weighted weekday fit (35%) and time-block fit (65%). With no preferred weekdays, only time-block fit is used.
+8. Time Priority weights time quality 100:1 over normalized RMP rating; Rating Priority reverses those weights. The secondary dimension therefore breaks ties and close cases without overriding the selected primary dimension.
+9. Manual-professor mode still uses time quality first among the chosen professor's eligible sections and RMP as a small secondary score.
+10. Search uses branch-and-bound with a 250,000-step default exploration ceiling and reports when a result may not be globally optimal.
 
 Current-schedule conflicts are checked during search and refreshed before plan generation, GPT prompt copying, and saving. Saving adds sections to Schedule Builder but never clicks Register.
 
@@ -216,7 +221,7 @@ TBA meetings cannot be proven conflict-free. They remain eligible but produce a 
 
 ### Popup, overlay, and onboarding
 
-- The browser-action popup and the embedded settings iframe share `popup.html` and `popup.js`.
+- The browser-action popup and the embedded settings iframe share `popup.html` and `popup.js`. Their Smart Schedule Planner toggle adds or removes the page UI immediately through the sync-storage listener in `50-bootstrap.js`.
 - `40-overlay-ui.js` injects the floating status bar and opens the embedded popup or developer panel.
 - `45-onboarding.js` owns the first-run/how-it-works modal.
 - Popup-to-content actions use `chrome.tabs.sendMessage` when opened as a browser action and parent-window messages when embedded.
@@ -261,10 +266,12 @@ The bridge remembers raw search objects by CRN (or hidden CRN for consent-requir
 | `sync` | `keepSessionAlive` | Enable keepalive and Continue Session handling. |
 | `sync` | `keepScreenAwake` | Enable wake lock while armed. |
 | `sync` | `showProfessorRatings` | Enable RMP cards and lookups. |
+| `sync` | `showSmartSchedulePlanner` | Show or remove Smart Schedule Planner on Schedule Builder. |
 | `local` | `assAdvancedConfig` | Developer overrides from `shared/config-schema.js`. |
 | `local` | `assQuarterCalendarCache` | Parsed registrar quarter dates and fetch timestamp. |
 | `local` | `assRmpCache`, `assRmpMiss` | RMP hits and confirmed misses with TTL metadata. |
 | `local` | `assAutoSchedulerCourseInput` | Last Smart Schedule Planner course input. |
+| `local` | `assSchedulerPreferences` | Preferred weekdays and per-time-block preference levels. |
 | `local` | `assOnboardingDismissed_v3` | Onboarding dismissal. |
 | `local` | `assDbgInst_<instance>` | Per-frame debug ring snapshots, pruned after 48 hours. |
 
@@ -288,7 +295,7 @@ The bridge remembers raw search objects by CRN (or hidden CRN for consent-requir
 | `shared/extension-context.js` | Guards calls after an extension reload invalidates a content-script context. |
 | `shared/clipboard.js` | Clipboard API plus `execCommand` fallback. |
 | `shared/ics.js` | Pure ICS/date/time helpers used by calendar export. |
-| `shared/scheduler-core.js` | Pure course normalization, availability classification, conflict solver, and GPT prompt generation. |
+| `shared/scheduler-core.js` | Pure course normalization, availability classification, time/RMP scoring, conflict solver, and GPT prompt generation. |
 
 ### Content scripts
 
@@ -308,7 +315,7 @@ The bridge remembers raw search objects by CRN (or hidden CRN for consent-requir
 | `content/50-bootstrap.js` | Frame gate, settings initialization, render loop, and storage/message listeners. |
 | `content/55-calendar-export.js` | Calendar preview, manual-date fallback, ICS download, and export buttons. |
 | `content/60-professor-ratings.js` | Instructor discovery, lookup queue, cache synchronization, and RMP cards. |
-| `content/65-auto-scheduler.js` | Planner UI, page-bridge client, RMP aggregation, rechecks, plan rendering, prompt copying, and saving. |
+| `content/65-auto-scheduler.js` | Planner UI and lifecycle, Advanced Settings modal, page-bridge client, RMP aggregation, rechecks, plan rendering, prompt copying, and saving. |
 | `content/ui/styles.js` | Shared inline style constants for overlay UI. |
 
 ## Permissions and trust boundaries
@@ -344,7 +351,8 @@ Current coverage includes:
 - Schedule Builder search-result normalization;
 - requested-course meeting conflict detection;
 - hard exclusion of `0/0` and current-Schedule conflicts;
-- manual-professor and rating-optimized plan selection;
+- manual-professor, time-priority, and rating-priority plan selection;
+- secondary-weight tie-breaking and hard Never-time exclusions;
 - GPT prompt content; and
 - MAIN-world search, conflict, seat, and save message handling.
 

@@ -8,6 +8,7 @@
   const core = window.ASS_SCHEDULER_CORE;
   const CHANNEL = "ASS_AUTO_SCHEDULER_BRIDGE_V1";
   const INPUT_STORAGE_KEY = "assAutoSchedulerCourseInput";
+  const PREFERENCES_STORAGE_KEY = "assSchedulerPreferences";
   const pendingRequests = new Map();
   let requestCounter = 0;
   let root = null;
@@ -16,6 +17,8 @@
   let generatedResult = null;
   let busy = false;
   let dataReady = false;
+  let preferences = core.normalizeSchedulerPreferences();
+  let advancedRoot = null;
 
   function normalizeText(value) {
     return String(value || "").replace(/\s+/g, " ").trim();
@@ -40,6 +43,20 @@
     clearTimeout(pending.timer);
     pendingRequests.delete(message.id);
     pending.resolve(message.payload || { ok: false, error: "Empty page response" });
+  });
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local" || !changes[PREFERENCES_STORAGE_KEY]) {
+      return;
+    }
+    preferences = core.normalizeSchedulerPreferences(
+      changes[PREFERENCES_STORAGE_KEY].newValue,
+    );
+    generatedResult = null;
+    if (refs) {
+      refs.output.hidden = true;
+    }
+    updatePreferenceSummary();
   });
 
   function pageRequest(action, payload, onProgress) {
@@ -87,7 +104,16 @@
       .ass-planner__output{margin-top:18px;padding-top:17px;border-top:2px solid #e8edf5}.ass-planner__output[hidden]{display:none}.ass-planner__output h3{margin:0 0 10px;color:#01256e;font-size:17px}
       .ass-planner__warning{margin:8px 0;padding:11px 12px;border:2px solid #f59e0b;border-radius:9px;background:#fffbeb;color:#78350f;font-weight:750}.ass-planner__warning--danger{border-color:#e11d48;background:#fff1f2;color:#881337}
       .ass-planner__table-wrap{overflow-x:auto}.ass-planner__table{width:100%;border-collapse:collapse;font-size:12px}.ass-planner__table th,.ass-planner__table td{padding:9px 8px;border-bottom:1px solid #e5eaf1;text-align:left;vertical-align:top}.ass-planner__table th{background:#f4f7fb;color:#344054;white-space:nowrap}.ass-planner__meetings{min-width:240px;line-height:1.5}.ass-planner__save-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:12px}
-      @media (max-width:700px){.ass-planner__body,.ass-planner__head{padding:15px}.ass-planner__actions{flex-direction:column}.ass-planner__btn{width:100%}}
+      .ass-planner__preference-summary{margin:11px 0 0;padding:9px 11px;border-radius:9px;background:#f8fafc;color:#475569;font-size:12px;line-height:1.45}
+      .ass-planner-modal{position:fixed;inset:0;z-index:2147483645;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,19,41,.58);font:400 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#172033}
+      .ass-planner-modal *{box-sizing:border-box}.ass-planner-modal__dialog{width:min(660px,100%);max-height:min(760px,calc(100vh - 40px));overflow:auto;border-radius:15px;background:#fff;box-shadow:0 24px 70px rgba(0,0,0,.28)}
+      .ass-planner-modal__head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:19px 21px;background:#01256e;color:#fff}.ass-planner-modal__head h2{margin:0;font-size:20px}.ass-planner-modal__head p{margin:5px 0 0;color:#dbeafe;line-height:1.4}
+      .ass-planner-modal__close{border:0;background:transparent;color:#fff;font-size:25px;line-height:1;cursor:pointer}.ass-planner-modal__body{padding:19px 21px}.ass-planner-modal__section+ .ass-planner-modal__section{margin-top:20px;padding-top:18px;border-top:1px solid #e5eaf1}
+      .ass-planner-modal__section h3{margin:0 0 5px;color:#01256e;font-size:16px}.ass-planner-modal__section p{margin:0 0 11px;color:#667085;font-size:12px;line-height:1.45}.ass-planner-modal__days{display:flex;gap:8px;flex-wrap:wrap}
+      .ass-planner-modal__day{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;font-weight:700;cursor:pointer}.ass-planner-modal__time-grid{display:grid;grid-template-columns:minmax(150px,1fr) minmax(160px,220px);gap:8px 12px;align-items:center}
+      .ass-planner-modal__time-label{font-weight:750}.ass-planner-modal__time-label small{display:block;margin-top:2px;color:#667085;font-weight:500}.ass-planner-modal select{width:100%;padding:8px 9px;border:1px solid #aebbd0;border-radius:8px;background:#fff;color:#172033}.ass-planner-modal__never-note{margin-top:11px!important;padding:9px 10px;border-radius:8px;background:#fff1f2;color:#9f1239!important;font-weight:700}
+      .ass-planner-modal__actions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap;margin-top:20px;padding-top:16px;border-top:1px solid #e5eaf1}
+      @media (max-width:700px){.ass-planner__body,.ass-planner__head{padding:15px}.ass-planner__actions{flex-direction:column}.ass-planner__btn{width:100%}.ass-planner-modal{padding:10px}.ass-planner-modal__time-grid{grid-template-columns:1fr}.ass-planner-modal__actions .ass-planner__btn{width:auto}}
     `;
     document.head.appendChild(style);
   }
@@ -108,6 +134,163 @@
     for (const button of root.querySelectorAll("button[data-ass-action]")) {
       button.disabled = nextBusy || (button.dataset.requiresData === "1" && !dataReady);
     }
+  }
+
+  function preferenceSummaryText() {
+    const dayLabels = preferences.preferredDays.map(
+      (day) => core.WEEKDAY_OPTIONS.find((option) => option.key === day)?.label || day,
+    );
+    const byLevel = { preferred: [], avoid: [], never: [] };
+    for (const block of core.TIME_BLOCKS) {
+      const level = preferences.timeBlocks[block.key];
+      if (byLevel[level]) {
+        byLevel[level].push(block.label);
+      }
+    }
+    return [
+      `Preferred days: ${dayLabels.length ? dayLabels.join(", ") : "none"}`,
+      `Preferred times: ${byLevel.preferred.length ? byLevel.preferred.join(", ") : "none"}`,
+      `Less preferred: ${byLevel.avoid.length ? byLevel.avoid.join(", ") : "none"}`,
+      `Never: ${byLevel.never.length ? byLevel.never.join(", ") : "none"}`,
+    ].join(" · ");
+  }
+
+  function updatePreferenceSummary() {
+    if (refs?.preferenceSummary) {
+      refs.preferenceSummary.textContent = preferenceSummaryText();
+    }
+  }
+
+  function closeAdvancedSettings() {
+    advancedRoot?.remove();
+    advancedRoot = null;
+  }
+
+  function readAdvancedSettings() {
+    if (!advancedRoot) {
+      return core.normalizeSchedulerPreferences();
+    }
+    const preferredDays = [...advancedRoot.querySelectorAll("[data-ass-day]:checked")]
+      .map((input) => input.dataset.assDay);
+    const timeBlocks = {};
+    for (const select of advancedRoot.querySelectorAll("[data-ass-time-block]")) {
+      timeBlocks[select.dataset.assTimeBlock] = select.value;
+    }
+    return core.normalizeSchedulerPreferences({ preferredDays, timeBlocks });
+  }
+
+  function fillAdvancedSettings(nextPreferences) {
+    const normalized = core.normalizeSchedulerPreferences(nextPreferences);
+    for (const input of advancedRoot.querySelectorAll("[data-ass-day]")) {
+      input.checked = normalized.preferredDays.includes(input.dataset.assDay);
+    }
+    for (const select of advancedRoot.querySelectorAll("[data-ass-time-block]")) {
+      select.value = normalized.timeBlocks[select.dataset.assTimeBlock];
+    }
+  }
+
+  function openAdvancedSettings() {
+    if (advancedRoot) {
+      advancedRoot.querySelector(".ass-planner-modal__dialog")?.focus();
+      return;
+    }
+    advancedRoot = document.createElement("div");
+    advancedRoot.className = "ass-planner-modal";
+    advancedRoot.innerHTML = `
+      <section class="ass-planner-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ass-planner-settings-title" tabindex="-1">
+        <header class="ass-planner-modal__head">
+          <div>
+            <h2 id="ass-planner-settings-title">Advanced Settings</h2>
+            <p>Set weekday and time preferences used by both automatic planning modes.</p>
+          </div>
+          <button type="button" class="ass-planner-modal__close" data-ass-settings-action="cancel" aria-label="Close Advanced Settings">×</button>
+        </header>
+        <div class="ass-planner-modal__body">
+          <section class="ass-planner-modal__section">
+            <h3>Preferred weekdays</h3>
+            <p>Select the weekdays you would rather attend. Unchecked days remain allowed.</p>
+            <div class="ass-planner-modal__days"></div>
+          </section>
+          <section class="ass-planner-modal__section">
+            <h3>Time preferences</h3>
+            <p>Preferred improves a plan's score, Less preferred lowers it, and Never is a hard exclusion.</p>
+            <div class="ass-planner-modal__time-grid"></div>
+            <p class="ass-planner-modal__never-note">A section overlapping a Never time block will not be selected in any planning mode.</p>
+          </section>
+          <div class="ass-planner-modal__actions">
+            <button type="button" class="ass-planner__btn" data-ass-settings-action="reset">Reset</button>
+            <button type="button" class="ass-planner__btn" data-ass-settings-action="cancel">Cancel</button>
+            <button type="button" class="ass-planner__btn ass-planner__btn--primary" data-ass-settings-action="save">Save Settings</button>
+          </div>
+        </div>
+      </section>
+    `;
+    const dayHost = advancedRoot.querySelector(".ass-planner-modal__days");
+    for (const option of core.WEEKDAY_OPTIONS) {
+      const label = document.createElement("label");
+      label.className = "ass-planner-modal__day";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.dataset.assDay = option.key;
+      label.append(input, document.createTextNode(option.label));
+      dayHost.appendChild(label);
+    }
+    const timeHost = advancedRoot.querySelector(".ass-planner-modal__time-grid");
+    const labels = {
+      preferred: "Preferred",
+      neutral: "Neutral",
+      avoid: "Less preferred",
+      never: "Never",
+    };
+    for (const block of core.TIME_BLOCKS) {
+      const label = document.createElement("label");
+      label.className = "ass-planner-modal__time-label";
+      label.htmlFor = `ass-planner-time-${block.key}`;
+      label.append(block.label);
+      const range = document.createElement("small");
+      range.textContent = block.rangeLabel;
+      label.appendChild(range);
+      const select = document.createElement("select");
+      select.id = `ass-planner-time-${block.key}`;
+      select.dataset.assTimeBlock = block.key;
+      for (const level of core.TIME_PREFERENCE_LEVELS) {
+        const option = document.createElement("option");
+        option.value = level;
+        option.textContent = labels[level];
+        select.appendChild(option);
+      }
+      timeHost.append(label, select);
+    }
+    fillAdvancedSettings(preferences);
+    advancedRoot.addEventListener("click", (event) => {
+      if (event.target === advancedRoot) {
+        closeAdvancedSettings();
+        return;
+      }
+      const action = event.target.closest("[data-ass-settings-action]")?.dataset.assSettingsAction;
+      if (action === "cancel") {
+        closeAdvancedSettings();
+      } else if (action === "reset") {
+        fillAdvancedSettings(core.normalizeSchedulerPreferences());
+      } else if (action === "save") {
+        preferences = readAdvancedSettings();
+        chrome.storage.local.set({ [PREFERENCES_STORAGE_KEY]: preferences });
+        generatedResult = null;
+        if (refs) {
+          refs.output.hidden = true;
+        }
+        updatePreferenceSummary();
+        closeAdvancedSettings();
+        setStatus("Advanced scheduling preferences saved.", "success");
+      }
+    });
+    advancedRoot.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeAdvancedSettings();
+      }
+    });
+    document.body.appendChild(advancedRoot);
+    advancedRoot.querySelector(".ass-planner-modal__dialog")?.focus();
   }
 
   function instructorSections(group, displayName) {
@@ -304,7 +487,7 @@
         dataReady = groups.length === codes.length;
         const sectionCount = groups.reduce((sum, group) => sum + group.sections.length, 0);
         setStatus(
-          `Done: ${groups.length} courses and ${sectionCount} sections. Choose one professor per course or use rating-optimized scheduling. Sections that conflict with your current Schedule are excluded.`,
+          `Done: ${groups.length} courses and ${sectionCount} sections. Choose one professor per course, or auto-plan by time or rating. Sections that conflict with your current Schedule are excluded.`,
           "success",
         );
       }
@@ -330,7 +513,7 @@
     refs.warnings.appendChild(warning);
   }
 
-  function renderSchedule(result, autoRatings) {
+  function renderSchedule(result, priority) {
     refs.warnings.replaceChildren();
     refs.scheduleTableBody.replaceChildren();
     if (result.hasWaitlist) {
@@ -346,7 +529,7 @@
       appendWarning("Some meeting times are TBA, so conflicts involving those unknown times cannot be verified yet.", false);
     }
     if (result.truncated) {
-      appendWarning("The search space was very large. This is the best conflict-free plan found so far, but it may not be the global rating optimum.", false);
+      appendWarning("The search space was very large. This is the best conflict-free plan found so far, but it may not be the global optimum.", false);
     }
 
     for (const section of result.schedule) {
@@ -373,9 +556,12 @@
       row.appendChild(meetingsCell);
       refs.scheduleTableBody.appendChild(row);
     }
-    refs.outputTitle.textContent = autoRatings
-      ? "Rating-optimized conflict-free plan"
-      : "Conflict-free plan for selected professors";
+    const titles = {
+      rating: "Rating-priority conflict-free plan",
+      time: "Time-priority conflict-free plan",
+      manual: "Conflict-free plan for selected professors",
+    };
+    refs.outputTitle.textContent = titles[priority] || titles.manual;
     refs.output.hidden = false;
     refs.output.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
@@ -412,7 +598,7 @@
     }
   }
 
-  async function generate(autoRatings) {
+  async function generate(priority) {
     if (!groups.length || busy) {
       return;
     }
@@ -426,22 +612,25 @@
       renderCourseChoices();
       restoreInstructorSelections(selections);
       const result = core.generateSchedule(groups, {
-        autoRatings,
+        priority,
         selections,
+        preferences,
       });
       if (!result.ok) {
         const messages = {
           missing_instructor: `Choose a professor for ${result.courseKey} first.`,
-          no_eligible_sections: result.instructor
-            ? `${result.courseKey} has no eligible section with ${result.instructor}. Sections with 0/0 seats or conflicts with your current Schedule are excluded.`
-            : `${result.courseKey} has no eligible section. Sections with 0/0 seats or conflicts with your current Schedule are excluded.`,
+          no_eligible_sections: result.blockedByTimePreferences
+            ? `${result.courseKey} has no eligible section. At least one section overlaps a Never time block; 0/0 seats and conflicts with your current Schedule are also excluded.`
+            : result.instructor
+              ? `${result.courseKey} has no eligible section with ${result.instructor}. Sections with 0/0 seats or conflicts with your current Schedule are excluded.`
+              : `${result.courseKey} has no eligible section. Sections with 0/0 seats or conflicts with your current Schedule are excluded.`,
           no_conflict_free_schedule: "No plan covers every requested course without conflicts between the requested courses and your current Schedule. Try different professors or copy the GPT prompt for a more personalized analysis.",
         };
         setStatus(messages[result.reason] || "A schedule could not be generated.", "error");
         return;
       }
       generatedResult = result;
-      renderSchedule(result, autoRatings);
+      renderSchedule(result, priority);
       setStatus(
         result.hasWaitlist
           ? "Generated a plan with no known class-time conflicts between requested courses or with your current Schedule. It contains a waitlist-only section; review the red warning."
@@ -530,7 +719,7 @@
       await refreshExistingScheduleConflicts();
       renderCourseChoices();
       restoreInstructorSelections(selections);
-      const prompt = core.buildPrompt(groups, currentTermName());
+      const prompt = core.buildPrompt(groups, currentTermName(), preferences);
       const copied = await window.ASS_CLIPBOARD.copyText(prompt);
       setStatus(
         copied
@@ -547,8 +736,10 @@
 
   function bindActions() {
     refs.collect.addEventListener("click", collectCourses);
-    refs.generateManual.addEventListener("click", () => generate(false));
-    refs.generateAuto.addEventListener("click", () => generate(true));
+    refs.generateManual.addEventListener("click", () => generate("manual"));
+    refs.generateTime.addEventListener("click", () => generate("time"));
+    refs.generateRating.addEventListener("click", () => generate("rating"));
+    refs.advanced.addEventListener("click", openAdvancedSettings);
     refs.copyPrompt.addEventListener("click", copyPrompt);
     refs.save.addEventListener("click", saveGeneratedSchedule);
   }
@@ -567,10 +758,13 @@
         <label class="ass-planner__label" for="ass-planner-input">All courses you want to take</label>
         <textarea id="ass-planner-input" class="ass-planner__input" placeholder="CHE002A, MAT 021A&#10;You can also enter one course per line"></textarea>
         <p class="ass-planner__hint">Course codes work with or without spaces. The planner uses the current term, live seats, and your current Schedule.</p>
+        <div class="ass-planner__preference-summary" aria-live="polite"></div>
         <div class="ass-planner__actions">
           <button type="button" class="ass-planner__btn ass-planner__btn--primary" data-ass-action="collect">Search All Courses & Professors</button>
           <button type="button" class="ass-planner__btn" data-ass-action="manual" data-requires-data="1" disabled>Plan with Selected Professors</button>
-          <button type="button" class="ass-planner__btn ass-planner__btn--gold" data-ass-action="auto" data-requires-data="1" disabled>Auto-Plan by Rating</button>
+          <button type="button" class="ass-planner__btn ass-planner__btn--gold" data-ass-action="time" data-requires-data="1" disabled>Auto-Plan: Time Priority</button>
+          <button type="button" class="ass-planner__btn ass-planner__btn--gold" data-ass-action="rating" data-requires-data="1" disabled>Auto-Plan: Rating Priority</button>
+          <button type="button" class="ass-planner__btn" data-ass-action="advanced">Advanced Settings</button>
           <button type="button" class="ass-planner__btn" data-ass-action="copy" data-requires-data="1" disabled>Copy GPT Scheduling Prompt</button>
         </div>
         <div class="ass-planner__status" role="status" aria-live="polite"></div>
@@ -595,7 +789,9 @@
       input: root.querySelector("#ass-planner-input"),
       collect: root.querySelector("[data-ass-action='collect']"),
       generateManual: root.querySelector("[data-ass-action='manual']"),
-      generateAuto: root.querySelector("[data-ass-action='auto']"),
+      generateTime: root.querySelector("[data-ass-action='time']"),
+      generateRating: root.querySelector("[data-ass-action='rating']"),
+      advanced: root.querySelector("[data-ass-action='advanced']"),
       copyPrompt: root.querySelector("[data-ass-action='copy']"),
       save: root.querySelector("[data-ass-action='save']"),
       status: root.querySelector(".ass-planner__status"),
@@ -604,12 +800,16 @@
       outputTitle: root.querySelector(".ass-planner__output h3"),
       warnings: root.querySelector(".ass-planner__warnings"),
       scheduleTableBody: root.querySelector(".ass-planner__table tbody"),
+      preferenceSummary: root.querySelector(".ass-planner__preference-summary"),
     };
     bindActions();
-    chrome.storage.local.get([INPUT_STORAGE_KEY], (stored) => {
+    updatePreferenceSummary();
+    chrome.storage.local.get([INPUT_STORAGE_KEY, PREFERENCES_STORAGE_KEY], (stored) => {
       if (stored?.[INPUT_STORAGE_KEY]) {
         refs.input.value = stored[INPUT_STORAGE_KEY];
       }
+      preferences = core.normalizeSchedulerPreferences(stored?.[PREFERENCES_STORAGE_KEY]);
+      updatePreferenceSummary();
     });
     return root;
   }
@@ -637,5 +837,10 @@
     }
   }
 
-  Object.assign(api, { ensureAutoSchedulerUi });
+  function removeAutoSchedulerUi() {
+    closeAdvancedSettings();
+    root?.remove();
+  }
+
+  Object.assign(api, { ensureAutoSchedulerUi, removeAutoSchedulerUi });
 })();
