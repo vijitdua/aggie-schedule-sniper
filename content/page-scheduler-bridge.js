@@ -19,6 +19,33 @@
     return String(raw?.course?.hidCRN || raw?.course?.crn || printable).trim();
   }
 
+  function currentTermCode() {
+    const globalValue = String(window.termCode || "").trim();
+    if (globalValue) {
+      return globalValue;
+    }
+    const search = String(window.location?.search || "");
+    const match = search.match(/[?&]termCode=([^&]+)/i);
+    if (match) {
+      return decodeURIComponent(match[1]).trim();
+    }
+    return String(
+      window.document?.querySelector("input[name='termCode']")?.value || "",
+    ).trim();
+  }
+
+  function courseSuggestion(raw) {
+    const subjectCode = String(raw?.course?.subjectCode || "").trim().toUpperCase();
+    const courseNum = String(raw?.course?.courseNum || "").trim().toUpperCase();
+    if (!subjectCode || !courseNum) {
+      return null;
+    }
+    return {
+      courseKey: `${subjectCode} ${courseNum}`,
+      title: String(raw?.course?.title || "").trim(),
+    };
+  }
+
   function wait(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
@@ -183,7 +210,7 @@
           );
         }
         try {
-          const seats = await searchApi.fetchSeatAvailability(crn, window.termCode);
+          const seats = await searchApi.fetchSeatAvailability(crn, currentTermCode());
           return plainCourseResult(raw, seats, null, existingConflict);
         } catch (error) {
           return plainCourseResult(
@@ -197,6 +224,33 @@
       (completed, total) => post(id, "progress", { stage: "seats", completed, total }),
     );
     return { results: withSeats };
+  }
+
+  async function suggestCourses(payload) {
+    const query = String(payload?.query || "").trim();
+    if (query.length < 2) {
+      return { suggestions: [] };
+    }
+    const searchApi = await waitForPageApi("search", 15000);
+    await ensureUserReady();
+    if (typeof searchApi.search !== "function") {
+      throw new Error("Schedule Builder search function is unavailable.");
+    }
+    const rawResults = await searchApi.search(query);
+    const results = Array.isArray(rawResults)
+      ? rawResults
+      : Object.values(rawResults || {});
+    const byCourse = new Map();
+    for (const raw of results) {
+      const suggestion = courseSuggestion(raw);
+      if (suggestion && !byCourse.has(suggestion.courseKey)) {
+        byCourse.set(suggestion.courseKey, suggestion);
+      }
+      if (byCourse.size >= 15) {
+        break;
+      }
+    }
+    return { suggestions: [...byCourse.values()] };
   }
 
   async function checkExistingScheduleConflicts(payload) {
@@ -272,6 +326,8 @@
           result = { ready: !!window.search };
         } else if (message.action === "search_courses") {
           result = await searchCourses(message.id, message.payload);
+        } else if (message.action === "suggest_courses") {
+          result = await suggestCourses(message.payload);
         } else if (message.action === "check_existing_conflicts") {
           result = await checkExistingScheduleConflicts(message.payload);
         } else if (message.action === "save_courses") {

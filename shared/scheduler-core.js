@@ -326,7 +326,10 @@
     const autoSelectInstructor = priority === "rating" || priority === "time";
     const selections = options?.selections || null;
     const preferences = normalizeSchedulerPreferences(options?.preferences);
-    const maxExplored = Number(options?.maxExplored) || 250000;
+    const requestedMaxExplored = Number(options?.maxExplored);
+    const maxExplored = Number.isInteger(requestedMaxExplored) && requestedMaxExplored > 0
+      ? requestedMaxExplored
+      : 250000;
     const courseCount = sourceGroups.length;
     const qualityMaxPerCourse = 10100;
     const qualityMaxTotal = courseCount * qualityMaxPerCourse;

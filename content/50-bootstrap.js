@@ -153,6 +153,10 @@
       api.openDeveloperPanel?.();
       return;
     }
+    if (event.data?.type === "ASS_OPEN_SMART_PLANNER") {
+      api.openAutoSchedulerModal?.();
+      return;
+    }
     if (event.data?.type === "ASS_CLOSE_DEV_MENU") {
       api.closeDeveloperPanel?.();
     }

@@ -8,6 +8,7 @@ const waitingHelpersToggle = document.getElementById("waitingHelpersToggle");
 const professorRatingsToggle = document.getElementById("professorRatingsToggle");
 const smartPlannerToggle = document.getElementById("smartPlannerToggle");
 const exportCalendarBtn = document.getElementById("exportCalendarBtn");
+const smartPlannerBtn = document.getElementById("smartPlannerBtn");
 const modeBadge = document.getElementById("modeBadge");
 const shareBtn = document.getElementById("shareBtn");
 const infoBtn = document.getElementById("infoBtn");
@@ -417,6 +418,16 @@ function setWaitingHelpers(enabled) {
 }
 
 function initializePopup() {
+  const applySmartPlannerAvailability = (enabled) => {
+    if (!smartPlannerBtn) {
+      return;
+    }
+    smartPlannerBtn.disabled = !enabled;
+    smartPlannerBtn.title = enabled
+      ? "Open Smart Schedule Planner"
+      : "Enable Smart Schedule Planner above to open it";
+  };
+
   chrome.storage.sync.get(DEFAULT_SETTINGS, (saved) => {
     sniperToggle.checked = !!saved.autoRegister;
     countdownToggle.checked = !!saved.showCountdown;
@@ -427,6 +438,7 @@ function initializePopup() {
     if (smartPlannerToggle) {
       smartPlannerToggle.checked = saved.showSmartSchedulePlanner !== false;
     }
+    applySmartPlannerAvailability(saved.showSmartSchedulePlanner !== false);
     updateModeBadge();
   });
 
@@ -456,6 +468,7 @@ function initializePopup() {
     chrome.storage.sync.set({
       showSmartSchedulePlanner: smartPlannerToggle.checked,
     });
+    applySmartPlannerAvailability(smartPlannerToggle.checked);
     updateModeBadge();
   });
 
@@ -468,6 +481,7 @@ function initializePopup() {
     }
     if (changes.showSmartSchedulePlanner && smartPlannerToggle) {
       smartPlannerToggle.checked = changes.showSmartSchedulePlanner.newValue !== false;
+      applySmartPlannerAvailability(changes.showSmartSchedulePlanner.newValue !== false);
     }
   });
 
@@ -486,6 +500,36 @@ function initializePopup() {
   exportCalendarBtn.addEventListener("click", () => {
     void exportCalendarFromPage();
   });
+
+  smartPlannerBtn?.addEventListener("click", () => {
+    void openSmartPlannerFromPopup();
+  });
+}
+
+async function openSmartPlannerFromPopup() {
+  if (isEmbedded && window.parent !== window) {
+    window.parent.postMessage({ type: "ASS_OPEN_SMART_PLANNER" }, "*");
+    return;
+  }
+
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    if (!tab?.id) {
+      showSnackbar("No active tab", "error");
+      return;
+    }
+    const response = await chrome.tabs.sendMessage(tab.id, {
+      type: "ASS_OPEN_SMART_PLANNER",
+    });
+    if (!response?.ok) {
+      showSnackbar("Open Schedule Builder on this tab first", "error");
+      return;
+    }
+    window.close();
+  } catch {
+    showSnackbar("Open Schedule Builder on this tab first", "error");
+  }
 }
 
 async function showOnboarding() {

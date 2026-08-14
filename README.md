@@ -35,12 +35,13 @@ Chrome extension for UC Davis students using Schedule Builder. Builds conflict-f
 
 ### Smart schedule planner
 
-1. Enter all desired courses in the **Smart auto scheduler** on Schedule Builder, for example `CHE002A, MAT 021A`.
-2. Search all sections and load live Open/Waitlist status plus RateMyProfessors data.
-3. Open **Advanced Settings** to choose preferred weekdays and mark time blocks as Preferred, Neutral, Less preferred, or Never.
-4. Pick one professor per course, or use **Time Priority** or **Rating Priority**. Each automatic mode gives its named factor the larger weight while still considering the other factor.
-5. Review the conflict-free result, then optionally save those sections to the current Schedule Builder schedule.
-6. Use **Copy GPT scheduling prompt** to ask ChatGPT for a more personalized plan with the complete section dataset and your scheduling preferences.
+1. Open **Smart Planner** next to **Export Calendar** in the extension popup, or next to the native course-search button on Schedule Builder.
+2. Type a course such as `CHE 002A`, choose a real Schedule Builder match, and add it as a chip. Invalid courses cannot be added.
+3. Search all selected courses and load live Open/Waitlist status plus RateMyProfessors data.
+4. Open **Advanced Settings** to choose preferred weekdays and mark time blocks as Preferred, Neutral, Less preferred, or Never.
+5. Pick one professor per course, or use **Time Priority** or **Rating Priority**. Each automatic mode gives its named factor the larger weight while still considering the other factor.
+6. Review the conflict-free result, then optionally save those sections to the current Schedule Builder schedule.
+7. Use **Copy GPT scheduling prompt** to copy a plain-text section dataset and preferences for ChatGPT. The extension does not call an AI API or send the schedule anywhere.
 
 Sections showing `Open 0 / Waitlist 0`, conflicts with your current Schedule, or overlap with a Never time block are excluded. Waitlist-only and TBA results remain visibly flagged and require user review.
 

@@ -394,6 +394,7 @@ input:checked + .slider:before {
   width: 100%;
   display: flex;
   justify-content: center;
+  gap: 8px;
   margin: 2px 0 4px;
 }
 
@@ -418,6 +419,11 @@ input:checked + .slider:before {
 .export-calendar-btn:focus-visible {
   outline: 2px solid var(--ucd-gold);
   outline-offset: 2px;
+}
+
+.export-calendar-btn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
 }
 
 .export-calendar-btn__icon {

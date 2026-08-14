@@ -250,6 +250,33 @@ test("schedule generation excludes sections that conflict with the current Sched
   assert.equal(result.schedule[0].selectedInstructor.displayName, "No Conflict");
 });
 
+test("invalid maxExplored values fall back to the default search limit", () => {
+  const groups = [
+    {
+      courseKey: "CHE 002A",
+      sections: [
+        section({
+          courseKey: "CHE 002A",
+          section: "A01",
+          instructor: "A. Alpha",
+          rating: 4.5,
+          days: ["M"],
+          start: 600,
+          end: 660,
+        }),
+      ],
+    },
+  ];
+  for (const maxExplored of [0, -1, 0.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    const result = core.generateSchedule(groups, {
+      priority: "rating",
+      maxExplored,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.truncated, false);
+  }
+});
+
 test("time and rating priority use opposite primary weights", () => {
   const groups = [
     {

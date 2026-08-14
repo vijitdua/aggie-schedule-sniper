@@ -166,7 +166,12 @@ sequenceDiagram
   participant RMP as RMP lookup pipeline
   participant Core as scheduler-core.js
 
-  User->>UI: Enter course codes
+  User->>UI: Type a course query
+  UI->>Bridge: suggest_courses
+  Bridge->>SB: search.search(query)
+  Bridge-->>UI: Deduplicated real-course suggestions
+  UI-->>User: Validated course chips
+  User->>UI: Search selected chips
   UI->>Bridge: search_courses
   Bridge->>SB: search.search(course)
   Bridge->>SB: timeConflict.Load + checkCourse
@@ -221,7 +226,7 @@ TBA meetings cannot be proven conflict-free. They remain eligible but produce a 
 
 ### Popup, overlay, and onboarding
 
-- The browser-action popup and the embedded settings iframe share `popup.html` and `popup.js`. Their Smart Schedule Planner toggle adds or removes the page UI immediately through the sync-storage listener in `50-bootstrap.js`.
+- The browser-action popup and the embedded settings iframe share `popup.html` and `popup.js`. Their Smart Schedule Planner toggle adds or removes the native-search launcher and hides the planner modal immediately through the sync-storage listener in `50-bootstrap.js`.
 - `40-overlay-ui.js` injects the floating status bar and opens the embedded popup or developer panel.
 - `45-onboarding.js` owns the first-run/how-it-works modal.
 - Popup-to-content actions use `chrome.tabs.sendMessage` when opened as a browser action and parent-window messages when embedded.
@@ -243,6 +248,7 @@ TBA meetings cannot be proven conflict-free. They remain eligible but produce a 
 | `ASS_EXPORT_CALENDAR` / `ASS_DOWNLOAD_ICS` | Popup | Content script | Start calendar export. |
 | `ASS_SHOW_ONBOARDING` | Popup | Content script | Show onboarding in the top frame. |
 | `ASS_OPEN_DEV_MENU` | Popup | Content script | Open the embedded developer panel. |
+| `ASS_OPEN_SMART_PLANNER` | Popup | Smart Planner content module | Open the shared planner modal from the browser-action popup. |
 
 ### Smart planner MAIN-world bridge
 
@@ -251,11 +257,12 @@ All bridge messages use channel `ASS_AUTO_SCHEDULER_BRIDGE_V1`, a request ID, an
 | Action | Purpose |
 |---|---|
 | `ping` | Report whether the page search API is ready. |
+| `suggest_courses` | Return up to 15 deduplicated real-course matches without seat lookups. |
 | `search_courses` | Run native course search, live-seat lookup, and initial current-schedule conflict checks. |
 | `check_existing_conflicts` | Reload the current Schedule and recheck remembered raw course objects. |
 | `save_courses` | Save remembered raw course objects through `schedule.addCourse()`. |
 
-The bridge remembers raw search objects by CRN (or hidden CRN for consent-required courses) because Schedule Builder requires its original object shape when saving.
+The bridge remembers raw search objects by CRN (or hidden CRN for consent-required courses) because Schedule Builder requires its original object shape when saving. Autocomplete uses a separate lightweight `suggest_courses` action that deduplicates at the course level and does not request live seats until the user searches the selected chips.
 
 ## Storage model
 
@@ -266,11 +273,11 @@ The bridge remembers raw search objects by CRN (or hidden CRN for consent-requir
 | `sync` | `keepSessionAlive` | Enable keepalive and Continue Session handling. |
 | `sync` | `keepScreenAwake` | Enable wake lock while armed. |
 | `sync` | `showProfessorRatings` | Enable RMP cards and lookups. |
-| `sync` | `showSmartSchedulePlanner` | Show or remove Smart Schedule Planner on Schedule Builder. |
+| `sync` | `showSmartSchedulePlanner` | Enable popup launch and show the Schedule Builder search launcher. |
 | `local` | `assAdvancedConfig` | Developer overrides from `shared/config-schema.js`. |
 | `local` | `assQuarterCalendarCache` | Parsed registrar quarter dates and fetch timestamp. |
 | `local` | `assRmpCache`, `assRmpMiss` | RMP hits and confirmed misses with TTL metadata. |
-| `local` | `assAutoSchedulerCourseInput` | Last Smart Schedule Planner course input. |
+| `local` | `assAutoSchedulerCourses` | Validated Smart Schedule Planner course chips. |
 | `local` | `assSchedulerPreferences` | Preferred weekdays and per-time-block preference levels. |
 | `local` | `assOnboardingDismissed_v3` | Onboarding dismissal. |
 | `local` | `assDbgInst_<instance>` | Per-frame debug ring snapshots, pruned after 48 hours. |
@@ -315,7 +322,7 @@ The bridge remembers raw search objects by CRN (or hidden CRN for consent-requir
 | `content/50-bootstrap.js` | Frame gate, settings initialization, render loop, and storage/message listeners. |
 | `content/55-calendar-export.js` | Calendar preview, manual-date fallback, ICS download, and export buttons. |
 | `content/60-professor-ratings.js` | Instructor discovery, lookup queue, cache synchronization, and RMP cards. |
-| `content/65-auto-scheduler.js` | Planner UI and lifecycle, Advanced Settings modal, page-bridge client, RMP aggregation, rechecks, plan rendering, prompt copying, and saving. |
+| `content/65-auto-scheduler.js` | Planner modal and launchers, autocomplete chips, Advanced Settings, page-bridge client, RMP aggregation, rechecks, plan rendering, prompt copying, and saving. |
 | `content/ui/styles.js` | Shared inline style constants for overlay UI. |
 
 ## Permissions and trust boundaries

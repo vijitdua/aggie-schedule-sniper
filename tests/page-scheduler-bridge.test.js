@@ -8,6 +8,7 @@ function createBridgeHarness() {
   let messageListener = null;
   const posted = [];
   const saved = [];
+  const seatTerms = [];
   const rawCourse = {
     course: {
       subjectCode: "CHE",
@@ -25,13 +26,17 @@ function createBridgeHarness() {
     finalExam: { examDate: "December, 07 2026 13:00:00" },
   };
   const window = {
-    location: { origin: "https://my.ucdavis.edu" },
+    location: {
+      origin: "https://my.ucdavis.edu",
+      search: "?termCode=202610",
+    },
     user: { pidm: 123, init() {} },
     search: {
       async search() {
         return { 0: rawCourse };
       },
-      async fetchSeatAvailability() {
+      async fetchSeatAvailability(_crn, termCode) {
+        seatTerms.push(termCode);
         return { seatsAvail: 4, waitCount: 2 };
       },
     },
@@ -83,7 +88,7 @@ function createBridgeHarness() {
     throw new Error("Bridge response timed out in test");
   }
 
-  return { request, saved };
+  return { request, saved, seatTerms };
 }
 
 test("MAIN-world bridge returns all results with live seats and saves remembered CRNs", async () => {
@@ -97,6 +102,16 @@ test("MAIN-world bridge returns all results with live seats and saves remembered
   );
   assert.equal(searched.results[0].existingScheduleConflict, true);
   assert.match(searched.results[0].existingScheduleConflictText, /Existing Course/);
+  assert.deepEqual(harness.seatTerms, ["202610"]);
+
+  const suggestions = await harness.request("suggest-1", "suggest_courses", {
+    query: "CHE 2A",
+  });
+  assert.equal(suggestions.ok, true);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(suggestions.suggestions)),
+    [{ courseKey: "CHE 002A", title: "General Chemistry" }],
+  );
 
   const conflicts = await harness.request("conflicts-1", "check_existing_conflicts", {
     courseKeys: ["24335"],

@@ -7,7 +7,7 @@
   const { api } = ASS;
   const core = window.ASS_SCHEDULER_CORE;
   const CHANNEL = "ASS_AUTO_SCHEDULER_BRIDGE_V1";
-  const INPUT_STORAGE_KEY = "assAutoSchedulerCourseInput";
+  const COURSES_STORAGE_KEY = "assAutoSchedulerCourses";
   const PREFERENCES_STORAGE_KEY = "assSchedulerPreferences";
   const pendingRequests = new Map();
   let requestCounter = 0;
@@ -19,6 +19,13 @@
   let dataReady = false;
   let preferences = core.normalizeSchedulerPreferences();
   let advancedRoot = null;
+  let searchLauncher = null;
+  let selectedCourses = [];
+  let suggestions = [];
+  let activeSuggestionIndex = -1;
+  let suggestionTimer = 0;
+  let suggestionRequestToken = 0;
+  const suggestionCache = new Map();
 
   function normalizeText(value) {
     return String(value || "").replace(/\s+/g, " ").trim();
@@ -82,13 +89,17 @@
     const style = document.createElement("style");
     style.id = "ass-auto-scheduler-styles";
     style.textContent = `
-      .ass-planner{margin:18px 0;border:1px solid #d9e2f0;border-top:5px solid #ffbf00;border-radius:14px;background:#fff;box-shadow:0 10px 28px rgba(1,37,110,.09);color:#172033;font:400 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+      .ass-planner-workspace[hidden]{display:none}.ass-planner-workspace{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.65);box-sizing:border-box}
+      .ass-planner{width:min(1100px,100%);max-height:calc(100vh - 40px);border:1px solid #d9e2f0;border-top:5px solid #ffbf00;border-radius:14px;background:#fff;box-shadow:0 24px 60px rgba(0,0,0,.28);color:#172033;font:400 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow:hidden;display:flex;flex-direction:column}
       .ass-planner *{box-sizing:border-box}
-      .ass-planner__head{padding:18px 20px;background:linear-gradient(135deg,#01256e,#123f91);color:#fff}
+      .ass-planner__head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:18px 20px;background:linear-gradient(135deg,#01256e,#123f91);color:#fff;flex:none}
+      .ass-planner__head-copy{min-width:0}.ass-planner__close{appearance:none;border:0;background:transparent;color:#fff;font-size:28px;line-height:1;cursor:pointer;padding:0 2px}.ass-planner__close:focus-visible{outline:2px solid #ffbf00;outline-offset:3px;border-radius:4px}
       .ass-planner__title{margin:0;font-size:20px;font-weight:800}.ass-planner__subtitle{margin:5px 0 0;color:#dbeafe;line-height:1.45}
-      .ass-planner__body{padding:18px 20px}.ass-planner__label{display:block;margin-bottom:7px;font-weight:750;color:#01256e}
-      .ass-planner__input{display:block;width:100%;min-height:82px;padding:11px 12px;border:1px solid #aebbd0;border-radius:10px;resize:vertical;font:500 14px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:#172033;background:#fff}
-      .ass-planner__input:focus{outline:3px solid rgba(255,191,0,.28);border-color:#a77800}
+      .ass-planner__body{padding:18px 20px;overflow:auto}.ass-planner__label{display:block;margin-bottom:7px;font-weight:750;color:#01256e}
+      .ass-planner__tag-editor{position:relative}.ass-planner__tag-box{display:flex;align-items:center;gap:7px;flex-wrap:wrap;width:100%;min-height:48px;padding:7px 9px;border:1px solid #aebbd0;border-radius:10px;background:#fff;cursor:text}.ass-planner__tag-box:focus-within{outline:3px solid rgba(255,191,0,.28);border-color:#a77800}.ass-planner__tag-box--invalid{border-color:#dc2626;background:#fffafa}
+      .ass-planner__tag-input{flex:1 1 190px;min-width:160px;padding:5px 3px;border:0;outline:0;background:transparent;color:#172033;font:500 14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}.ass-planner__tag-input::placeholder{color:#94a3b8}
+      .ass-planner__chips{display:contents}.ass-planner__course-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:5px 7px 5px 9px;border:1px solid #c7d4e7;border-radius:999px;background:#edf3fb;color:#01256e;font-size:12px;font-weight:800}.ass-planner__course-chip-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;color:#526071;font-weight:600}.ass-planner__chip-remove{appearance:none;border:0;background:transparent;color:#64748b;font-size:17px;line-height:1;cursor:pointer;padding:0}
+      .ass-planner__suggestions{position:absolute;z-index:5;top:calc(100% + 5px);left:0;right:0;max-height:260px;overflow:auto;border:1px solid #cbd5e1;border-radius:10px;background:#fff;box-shadow:0 12px 28px rgba(15,23,42,.18)}.ass-planner__suggestions[hidden]{display:none}.ass-planner__suggestion{display:block;width:100%;padding:10px 12px;border:0;border-bottom:1px solid #eef2f7;background:#fff;text-align:left;cursor:pointer;color:#172033}.ass-planner__suggestion:last-child{border-bottom:0}.ass-planner__suggestion:hover,.ass-planner__suggestion--active{background:#eef4ff}.ass-planner__suggestion-code{display:block;color:#01256e;font-weight:800}.ass-planner__suggestion-title{display:block;margin-top:2px;color:#667085;font-size:12px}.ass-planner__suggestion-state{padding:11px 12px;color:#667085;font-size:12px}
       .ass-planner__hint{margin:7px 0 0;color:#667085;font-size:12px}.ass-planner__actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}
       .ass-planner__btn{appearance:none;border:1px solid #01256e;border-radius:9px;padding:9px 13px;background:#fff;color:#01256e;font-weight:750;cursor:pointer;line-height:1.25}
       .ass-planner__btn:hover:not(:disabled){background:#eef4ff}.ass-planner__btn--primary{background:#01256e;color:#fff}.ass-planner__btn--primary:hover:not(:disabled){background:#123f91}
@@ -105,7 +116,7 @@
       .ass-planner__warning{margin:8px 0;padding:11px 12px;border:2px solid #f59e0b;border-radius:9px;background:#fffbeb;color:#78350f;font-weight:750}.ass-planner__warning--danger{border-color:#e11d48;background:#fff1f2;color:#881337}
       .ass-planner__table-wrap{overflow-x:auto}.ass-planner__table{width:100%;border-collapse:collapse;font-size:12px}.ass-planner__table th,.ass-planner__table td{padding:9px 8px;border-bottom:1px solid #e5eaf1;text-align:left;vertical-align:top}.ass-planner__table th{background:#f4f7fb;color:#344054;white-space:nowrap}.ass-planner__meetings{min-width:240px;line-height:1.5}.ass-planner__save-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:12px}
       .ass-planner__preference-summary{margin:11px 0 0;padding:9px 11px;border-radius:9px;background:#f8fafc;color:#475569;font-size:12px;line-height:1.45}
-      .ass-planner-modal{position:fixed;inset:0;z-index:2147483645;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,19,41,.58);font:400 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#172033}
+      .ass-planner-modal{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,19,41,.58);font:400 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#172033}
       .ass-planner-modal *{box-sizing:border-box}.ass-planner-modal__dialog{width:min(660px,100%);max-height:min(760px,calc(100vh - 40px));overflow:auto;border-radius:15px;background:#fff;box-shadow:0 24px 70px rgba(0,0,0,.28)}
       .ass-planner-modal__head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:19px 21px;background:#01256e;color:#fff}.ass-planner-modal__head h2{margin:0;font-size:20px}.ass-planner-modal__head p{margin:5px 0 0;color:#dbeafe;line-height:1.4}
       .ass-planner-modal__close{border:0;background:transparent;color:#fff;font-size:25px;line-height:1;cursor:pointer}.ass-planner-modal__body{padding:19px 21px}.ass-planner-modal__section+ .ass-planner-modal__section{margin-top:20px;padding-top:18px;border-top:1px solid #e5eaf1}
@@ -113,7 +124,7 @@
       .ass-planner-modal__day{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;font-weight:700;cursor:pointer}.ass-planner-modal__time-grid{display:grid;grid-template-columns:minmax(150px,1fr) minmax(160px,220px);gap:8px 12px;align-items:center}
       .ass-planner-modal__time-label{font-weight:750}.ass-planner-modal__time-label small{display:block;margin-top:2px;color:#667085;font-weight:500}.ass-planner-modal select{width:100%;padding:8px 9px;border:1px solid #aebbd0;border-radius:8px;background:#fff;color:#172033}.ass-planner-modal__never-note{margin-top:11px!important;padding:9px 10px;border-radius:8px;background:#fff1f2;color:#9f1239!important;font-weight:700}
       .ass-planner-modal__actions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap;margin-top:20px;padding-top:16px;border-top:1px solid #e5eaf1}
-      @media (max-width:700px){.ass-planner__body,.ass-planner__head{padding:15px}.ass-planner__actions{flex-direction:column}.ass-planner__btn{width:100%}.ass-planner-modal{padding:10px}.ass-planner-modal__time-grid{grid-template-columns:1fr}.ass-planner-modal__actions .ass-planner__btn{width:auto}}
+      @media (max-width:700px){.ass-planner-workspace{padding:10px}.ass-planner{max-height:calc(100vh - 20px)}.ass-planner__body,.ass-planner__head{padding:15px}.ass-planner__actions{flex-direction:column}.ass-planner__btn{width:100%}.ass-planner-modal{padding:10px}.ass-planner-modal__time-grid{grid-template-columns:1fr}.ass-planner-modal__actions .ass-planner__btn{width:auto}.ass-planner__course-chip-title{display:none}}
     `;
     document.head.appendChild(style);
   }
@@ -134,6 +145,191 @@
     for (const button of root.querySelectorAll("button[data-ass-action]")) {
       button.disabled = nextBusy || (button.dataset.requiresData === "1" && !dataReady);
     }
+  }
+
+  function persistSelectedCourses() {
+    chrome.storage.local.set({ [COURSES_STORAGE_KEY]: selectedCourses });
+  }
+
+  function invalidateLoadedCourses() {
+    groups = [];
+    generatedResult = null;
+    dataReady = false;
+    if (!refs) {
+      return;
+    }
+    refs.courses.replaceChildren();
+    refs.output.hidden = true;
+    setBusy(false);
+  }
+
+  function closeSuggestions() {
+    suggestions = [];
+    activeSuggestionIndex = -1;
+    if (refs?.suggestions) {
+      refs.suggestions.hidden = true;
+      refs.suggestions.replaceChildren();
+      refs.tagBox.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  function renderSelectedCourses() {
+    if (!refs?.chips) {
+      return;
+    }
+    refs.chips.replaceChildren();
+    for (const course of selectedCourses) {
+      const chip = document.createElement("span");
+      chip.className = "ass-planner__course-chip";
+      const code = document.createElement("span");
+      code.textContent = course.courseKey;
+      const title = document.createElement("span");
+      title.className = "ass-planner__course-chip-title";
+      title.textContent = course.title || "";
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "ass-planner__chip-remove";
+      remove.dataset.assRemoveCourse = course.courseKey;
+      remove.setAttribute("aria-label", `Remove ${course.courseKey}`);
+      remove.textContent = "×";
+      chip.append(code);
+      if (course.title) {
+        chip.appendChild(title);
+      }
+      chip.appendChild(remove);
+      refs.chips.appendChild(chip);
+    }
+  }
+
+  function setSuggestionState(message, isInvalid = false) {
+    refs.tagBox.classList.toggle("ass-planner__tag-box--invalid", isInvalid);
+    refs.suggestions.replaceChildren();
+    const state = document.createElement("div");
+    state.className = "ass-planner__suggestion-state";
+    state.textContent = message;
+    refs.suggestions.appendChild(state);
+    refs.suggestions.hidden = false;
+    refs.tagBox.setAttribute("aria-expanded", "true");
+  }
+
+  function renderSuggestions() {
+    refs.tagBox.classList.remove("ass-planner__tag-box--invalid");
+    refs.suggestions.replaceChildren();
+    if (!suggestions.length) {
+      setSuggestionState("No matching real course. Keep typing or check the course code.", true);
+      return;
+    }
+    suggestions.forEach((course, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `ass-planner__suggestion${index === activeSuggestionIndex ? " ass-planner__suggestion--active" : ""}`;
+      button.dataset.assSuggestionIndex = String(index);
+      button.setAttribute("role", "option");
+      button.setAttribute("aria-selected", index === activeSuggestionIndex ? "true" : "false");
+      const code = document.createElement("span");
+      code.className = "ass-planner__suggestion-code";
+      code.textContent = course.courseKey;
+      const title = document.createElement("span");
+      title.className = "ass-planner__suggestion-title";
+      title.textContent = course.title || "Course title unavailable";
+      button.append(code, title);
+      refs.suggestions.appendChild(button);
+    });
+    refs.suggestions.hidden = false;
+    refs.tagBox.setAttribute("aria-expanded", "true");
+  }
+
+  function addSelectedCourse(course) {
+    if (!course?.courseKey || selectedCourses.some((item) => item.courseKey === course.courseKey)) {
+      return;
+    }
+    selectedCourses.push({
+      courseKey: course.courseKey,
+      title: normalizeText(course.title),
+    });
+    persistSelectedCourses();
+    invalidateLoadedCourses();
+    renderSelectedCourses();
+    refs.courseInput.value = "";
+    refs.tagBox.classList.remove("ass-planner__tag-box--invalid");
+    closeSuggestions();
+    setStatus(`${course.courseKey} added.`, "success");
+    refs.courseInput.focus();
+  }
+
+  function removeSelectedCourse(courseKey) {
+    if (busy) {
+      return;
+    }
+    selectedCourses = selectedCourses.filter((course) => course.courseKey !== courseKey);
+    persistSelectedCourses();
+    invalidateLoadedCourses();
+    renderSelectedCourses();
+    setStatus(`${courseKey} removed. Search again after choosing all courses.`, "info");
+  }
+
+  async function loadCourseSuggestions(query) {
+    const trimmed = normalizeText(query);
+    if (trimmed.length < 2) {
+      refs.tagBox.classList.remove("ass-planner__tag-box--invalid");
+      closeSuggestions();
+      return;
+    }
+    const cacheKey = trimmed.toUpperCase();
+    const requestToken = ++suggestionRequestToken;
+    setSuggestionState("Searching Schedule Builder courses…");
+    try {
+      let nextSuggestions = suggestionCache.get(cacheKey);
+      if (!nextSuggestions) {
+        const response = await pageRequest("suggest_courses", { query: trimmed });
+        if (!response.ok) {
+          throw new Error(response.error || "Course lookup failed");
+        }
+        nextSuggestions = (response.suggestions || [])
+          .map((course) => ({
+            courseKey: core.parseCourseCodes(course.courseKey)?.[0] || null,
+            title: normalizeText(course.title),
+          }))
+          .filter((course) => course.courseKey);
+        suggestionCache.set(cacheKey, nextSuggestions);
+      }
+      if (requestToken !== suggestionRequestToken || refs.courseInput.value.trim() !== query.trim()) {
+        return;
+      }
+      const selectedKeys = new Set(selectedCourses.map((course) => course.courseKey));
+      suggestions = nextSuggestions.filter((course) => !selectedKeys.has(course.courseKey));
+      activeSuggestionIndex = suggestions.length ? 0 : -1;
+      if (!suggestions.length && nextSuggestions.length) {
+        setSuggestionState("All matching courses are already added.");
+        return;
+      }
+      renderSuggestions();
+    } catch (error) {
+      if (requestToken !== suggestionRequestToken) {
+        return;
+      }
+      setSuggestionState(`Could not validate this course: ${error?.message || String(error)}`, true);
+    }
+  }
+
+  function scheduleSuggestionLookup() {
+    clearTimeout(suggestionTimer);
+    const query = refs.courseInput.value;
+    suggestionTimer = window.setTimeout(() => {
+      void loadCourseSuggestions(query);
+    }, 300);
+  }
+
+  function moveActiveSuggestion(delta) {
+    if (!suggestions.length) {
+      return;
+    }
+    activeSuggestionIndex =
+      (activeSuggestionIndex + delta + suggestions.length) % suggestions.length;
+    renderSuggestions();
+    refs.suggestions
+      .querySelector(`[data-ass-suggestion-index='${activeSuggestionIndex}']`)
+      ?.scrollIntoView({ block: "nearest" });
   }
 
   function preferenceSummaryText() {
@@ -421,10 +617,16 @@
     if (busy) {
       return;
     }
-    const codes = core.parseCourseCodes(refs.input.value);
+    if (refs.courseInput.value.trim()) {
+      setStatus("Choose the typed course from the validated suggestions before searching.", "error");
+      refs.tagBox.classList.add("ass-planner__tag-box--invalid");
+      refs.courseInput.focus();
+      return;
+    }
+    const codes = selectedCourses.map((course) => course.courseKey);
     if (!codes.length) {
-      setStatus("No courses were recognized. Use a format such as CHE002A, CHE 002A, or MAT 021A.", "error");
-      refs.input.focus();
+      setStatus("Add at least one course from the validated suggestions first.", "error");
+      refs.courseInput.focus();
       return;
     }
     setBusy(true);
@@ -476,7 +678,6 @@
       if (groups.length) {
         await loadRatings();
         renderCourseChoices();
-        chrome.storage.local.set({ [INPUT_STORAGE_KEY]: refs.input.value });
       }
       if (missing.length) {
         setStatus(
@@ -742,51 +943,124 @@
     refs.advanced.addEventListener("click", openAdvancedSettings);
     refs.copyPrompt.addEventListener("click", copyPrompt);
     refs.save.addEventListener("click", saveGeneratedSchedule);
+    refs.close.addEventListener("click", closeAutoSchedulerModal);
+    refs.tagBox.addEventListener("click", () => refs.courseInput.focus());
+    refs.chips.addEventListener("click", (event) => {
+      const courseKey = event.target.closest("[data-ass-remove-course]")?.dataset.assRemoveCourse;
+      if (courseKey) {
+        event.stopPropagation();
+        removeSelectedCourse(courseKey);
+      }
+    });
+    refs.courseInput.addEventListener("input", scheduleSuggestionLookup);
+    refs.courseInput.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        moveActiveSuggestion(1);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        moveActiveSuggestion(-1);
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        if (activeSuggestionIndex >= 0 && suggestions[activeSuggestionIndex]) {
+          addSelectedCourse(suggestions[activeSuggestionIndex]);
+        } else if (refs.courseInput.value.trim()) {
+          setSuggestionState("Choose a validated course from the suggestions.", true);
+        }
+      } else if (event.key === "Escape") {
+        if (!refs.suggestions.hidden) {
+          event.stopPropagation();
+          closeSuggestions();
+        }
+      } else if (
+        event.key === "Backspace" &&
+        !refs.courseInput.value &&
+        selectedCourses.length
+      ) {
+        removeSelectedCourse(selectedCourses[selectedCourses.length - 1].courseKey);
+      }
+    });
+    refs.suggestions.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      const index = Number(
+        event.target.closest("[data-ass-suggestion-index]")?.dataset.assSuggestionIndex,
+      );
+      if (Number.isInteger(index) && suggestions[index]) {
+        addSelectedCourse(suggestions[index]);
+      }
+    });
+    root.addEventListener("click", (event) => {
+      if (event.target === root) {
+        closeAutoSchedulerModal();
+      } else if (!event.target.closest(".ass-planner__tag-editor")) {
+        closeSuggestions();
+      }
+    });
+    root.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !advancedRoot && refs.suggestions.hidden) {
+        closeAutoSchedulerModal();
+      }
+    });
   }
 
   function createUi() {
     ensureStyles();
-    root = document.createElement("section");
+    root = document.createElement("div");
     root.id = "ass-auto-scheduler";
-    root.className = "ass-planner";
+    root.className = "ass-planner-workspace";
     root.innerHTML = `
-      <div class="ass-planner__head">
-        <h2 class="ass-planner__title">Smart Schedule Planner</h2>
-        <p class="ass-planner__subtitle">Search courses in bulk, compare RateMyProfessors data, exclude 0/0 and current-schedule conflicts, and generate a conflict-free plan.</p>
-      </div>
-      <div class="ass-planner__body">
-        <label class="ass-planner__label" for="ass-planner-input">All courses you want to take</label>
-        <textarea id="ass-planner-input" class="ass-planner__input" placeholder="CHE002A, MAT 021A&#10;You can also enter one course per line"></textarea>
-        <p class="ass-planner__hint">Course codes work with or without spaces. The planner uses the current term, live seats, and your current Schedule.</p>
-        <div class="ass-planner__preference-summary" aria-live="polite"></div>
-        <div class="ass-planner__actions">
-          <button type="button" class="ass-planner__btn ass-planner__btn--primary" data-ass-action="collect">Search All Courses & Professors</button>
-          <button type="button" class="ass-planner__btn" data-ass-action="manual" data-requires-data="1" disabled>Plan with Selected Professors</button>
-          <button type="button" class="ass-planner__btn ass-planner__btn--gold" data-ass-action="time" data-requires-data="1" disabled>Auto-Plan: Time Priority</button>
-          <button type="button" class="ass-planner__btn ass-planner__btn--gold" data-ass-action="rating" data-requires-data="1" disabled>Auto-Plan: Rating Priority</button>
-          <button type="button" class="ass-planner__btn" data-ass-action="advanced">Advanced Settings</button>
-          <button type="button" class="ass-planner__btn" data-ass-action="copy" data-requires-data="1" disabled>Copy GPT Scheduling Prompt</button>
+      <section class="ass-planner" role="dialog" aria-modal="true" aria-labelledby="ass-planner-title">
+        <div class="ass-planner__head">
+          <div class="ass-planner__head-copy">
+            <h2 class="ass-planner__title" id="ass-planner-title">Smart Schedule Planner</h2>
+            <p class="ass-planner__subtitle">Search courses in bulk, compare RateMyProfessors data, exclude unavailable or conflicting sections, and generate a conflict-free plan.</p>
+          </div>
+          <button type="button" class="ass-planner__close" data-ass-action="close" aria-label="Close Smart Schedule Planner">×</button>
         </div>
-        <div class="ass-planner__status" role="status" aria-live="polite"></div>
-        <div class="ass-planner__courses"></div>
-        <section class="ass-planner__output" hidden>
-          <h3></h3>
-          <div class="ass-planner__warnings"></div>
-          <div class="ass-planner__table-wrap">
-            <table class="ass-planner__table">
-              <thead><tr><th>Course</th><th>Section</th><th>CRN</th><th>Professor</th><th>RMP</th><th>Seats</th><th>Meetings</th></tr></thead>
-              <tbody></tbody>
-            </table>
+        <div class="ass-planner__body">
+          <label class="ass-planner__label" for="ass-planner-course-input">Courses you want to take</label>
+          <div class="ass-planner__tag-editor">
+            <div class="ass-planner__tag-box" role="combobox" aria-haspopup="listbox" aria-owns="ass-planner-suggestions" aria-expanded="false">
+              <span class="ass-planner__chips"></span>
+              <input id="ass-planner-course-input" class="ass-planner__tag-input" type="text" autocomplete="off" placeholder="Type a course, such as CHE 002A" aria-autocomplete="list" aria-controls="ass-planner-suggestions" />
+            </div>
+            <div id="ass-planner-suggestions" class="ass-planner__suggestions" role="listbox" hidden></div>
           </div>
-          <div class="ass-planner__save-row">
-            <button type="button" class="ass-planner__btn ass-planner__btn--primary" data-ass-action="save">Save This Plan to Schedule Builder</button>
-            <span class="ass-planner__hint">This saves courses only. It never clicks Register for you.</span>
+          <p class="ass-planner__hint">Only courses validated by Schedule Builder can be added. The planner uses the current term, live seats, and your current Schedule.</p>
+          <div class="ass-planner__preference-summary" aria-live="polite"></div>
+          <div class="ass-planner__actions">
+            <button type="button" class="ass-planner__btn ass-planner__btn--primary" data-ass-action="collect">Search All Courses & Professors</button>
+            <button type="button" class="ass-planner__btn" data-ass-action="manual" data-requires-data="1" disabled>Plan with Selected Professors</button>
+            <button type="button" class="ass-planner__btn ass-planner__btn--gold" data-ass-action="time" data-requires-data="1" disabled>Auto-Plan: Time Priority</button>
+            <button type="button" class="ass-planner__btn ass-planner__btn--gold" data-ass-action="rating" data-requires-data="1" disabled>Auto-Plan: Rating Priority</button>
+            <button type="button" class="ass-planner__btn" data-ass-action="advanced">Advanced Settings</button>
+            <button type="button" class="ass-planner__btn" data-ass-action="copy" data-requires-data="1" disabled>Copy GPT Scheduling Prompt</button>
           </div>
-        </section>
-      </div>
+          <p class="ass-planner__hint">The GPT prompt action only copies a plain-text course summary to your clipboard. It does not call an AI API or send your schedule anywhere.</p>
+          <div class="ass-planner__status" role="status" aria-live="polite"></div>
+          <div class="ass-planner__courses"></div>
+          <section class="ass-planner__output" hidden>
+            <h3></h3>
+            <div class="ass-planner__warnings"></div>
+            <div class="ass-planner__table-wrap">
+              <table class="ass-planner__table">
+                <thead><tr><th>Course</th><th>Section</th><th>CRN</th><th>Professor</th><th>RMP</th><th>Seats</th><th>Meetings</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="ass-planner__save-row">
+              <button type="button" class="ass-planner__btn ass-planner__btn--primary" data-ass-action="save">Save This Plan to Schedule Builder</button>
+              <span class="ass-planner__hint">This saves courses only. It never clicks Register for you.</span>
+            </div>
+          </section>
+        </div>
+      </section>
     `;
     refs = {
-      input: root.querySelector("#ass-planner-input"),
+      courseInput: root.querySelector("#ass-planner-course-input"),
+      tagBox: root.querySelector(".ass-planner__tag-box"),
+      chips: root.querySelector(".ass-planner__chips"),
+      suggestions: root.querySelector(".ass-planner__suggestions"),
       collect: root.querySelector("[data-ass-action='collect']"),
       generateManual: root.querySelector("[data-ass-action='manual']"),
       generateTime: root.querySelector("[data-ass-action='time']"),
@@ -794,6 +1068,7 @@
       advanced: root.querySelector("[data-ass-action='advanced']"),
       copyPrompt: root.querySelector("[data-ass-action='copy']"),
       save: root.querySelector("[data-ass-action='save']"),
+      close: root.querySelector("[data-ass-action='close']"),
       status: root.querySelector(".ass-planner__status"),
       courses: root.querySelector(".ass-planner__courses"),
       output: root.querySelector(".ass-planner__output"),
@@ -803,44 +1078,101 @@
       preferenceSummary: root.querySelector(".ass-planner__preference-summary"),
     };
     bindActions();
+    renderSelectedCourses();
     updatePreferenceSummary();
-    chrome.storage.local.get([INPUT_STORAGE_KEY, PREFERENCES_STORAGE_KEY], (stored) => {
-      if (stored?.[INPUT_STORAGE_KEY]) {
-        refs.input.value = stored[INPUT_STORAGE_KEY];
-      }
+    chrome.storage.local.get([COURSES_STORAGE_KEY, PREFERENCES_STORAGE_KEY], (stored) => {
+      selectedCourses = (Array.isArray(stored?.[COURSES_STORAGE_KEY])
+        ? stored[COURSES_STORAGE_KEY]
+        : [])
+        .map((course) => ({
+          courseKey: core.parseCourseCodes(course?.courseKey)?.[0] || null,
+          title: normalizeText(course?.title),
+        }))
+        .filter((course) => course.courseKey);
       preferences = core.normalizeSchedulerPreferences(stored?.[PREFERENCES_STORAGE_KEY]);
+      renderSelectedCourses();
       updatePreferenceSummary();
     });
+    if (groups.length) {
+      renderCourseChoices();
+    }
+    if (generatedResult?.ok) {
+      renderSchedule(generatedResult, generatedResult.priority);
+    }
+    setBusy(busy);
     return root;
   }
 
   function ensureAutoSchedulerUi() {
-    if (root && document.contains(root)) {
+    if (searchLauncher && document.contains(searchLauncher)) {
       return;
     }
-    if (root) {
+    searchLauncher = null;
+    const inputGroup = document.querySelector(
+      "#inline_course_search_form .input-group",
+    );
+    if (!inputGroup) {
+      return;
+    }
+    searchLauncher = document.createElement("button");
+    searchLauncher.id = "assSmartPlannerSearchBtn";
+    searchLauncher.type = "button";
+    searchLauncher.className = "btn btn-primary uppercase";
+    searchLauncher.textContent = "Smart Planner";
+    searchLauncher.title = "Open Smart Schedule Planner";
+    searchLauncher.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openAutoSchedulerModal();
+    });
+    inputGroup.appendChild(searchLauncher);
+  }
+
+  function openAutoSchedulerModal() {
+    if (ASS.state.settings.showSmartSchedulePlanner === false) {
+      return false;
+    }
+    api.closeSettingsPanel?.();
+    if (!root || !document.contains(root)) {
       root = null;
       refs = null;
-      groups = [];
-      generatedResult = null;
-      dataReady = false;
+      document.body.appendChild(createUi());
     }
-    const searchHost = document.getElementById("InlineSearchContainer");
-    if (!searchHost) {
-      return;
-    }
-    const inlineForm = searchHost.querySelector("#inline_course_search_form");
-    if (inlineForm) {
-      inlineForm.insertAdjacentElement("afterend", createUi());
-    } else {
-      searchHost.prepend(createUi());
+    root.hidden = false;
+    window.requestAnimationFrame(() => refs?.courseInput?.focus());
+    return true;
+  }
+
+  function closeAutoSchedulerModal() {
+    closeSuggestions();
+    closeAdvancedSettings();
+    if (root) {
+      root.hidden = true;
     }
   }
 
   function removeAutoSchedulerUi() {
+    clearTimeout(suggestionTimer);
     closeAdvancedSettings();
-    root?.remove();
+    if (root) {
+      root.hidden = true;
+    }
+    searchLauncher?.remove();
+    searchLauncher = null;
   }
 
-  Object.assign(api, { ensureAutoSchedulerUi, removeAutoSchedulerUi });
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type !== "ASS_OPEN_SMART_PLANNER") {
+      return false;
+    }
+    sendResponse({ ok: openAutoSchedulerModal() });
+    return false;
+  });
+
+  Object.assign(api, {
+    ensureAutoSchedulerUi,
+    removeAutoSchedulerUi,
+    openAutoSchedulerModal,
+    closeAutoSchedulerModal,
+  });
 })();
