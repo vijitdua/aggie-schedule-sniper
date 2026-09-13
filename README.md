@@ -30,20 +30,18 @@ Chrome extension for UC Davis students using Schedule Builder. Builds conflict-f
 
 1. Open Schedule Builder on `my.ucdavis.edu` or `schedulebuilder.ucdavis.edu`.
 2. A floating **Aggie Sniper ⚙** bar appears near your pass times.
-3. Click it to open settings, including the Smart Schedule Planner visibility toggle.
+3. Click it to open settings, including the Advanced Planner toggle.
 4. On first visit, a short onboarding modal explains how the app works (stay awake, keep the tab open, stay online).
 
-### Smart schedule planner
+### Advanced Planner
 
-1. Open **Smart Planner** next to **Export Calendar** in the extension popup, or next to the native course-search button on Schedule Builder.
-2. Type a course such as `CHE 002A`, choose a real Schedule Builder match, and add it as a chip. Invalid courses cannot be added.
-3. Search all selected courses and load live Open/Waitlist status plus RateMyProfessors data.
-4. Open **Advanced Settings** to choose preferred weekdays and mark time blocks as Preferred, Neutral, Less preferred, or Never.
-5. Pick one professor per course, or use **Time Priority** or **Rating Priority**. Each automatic mode gives its named factor the larger weight while still considering the other factor.
-6. Review the conflict-free result, then optionally save those sections to the current Schedule Builder schedule.
-7. Use **Copy GPT scheduling prompt** to copy a plain-text section dataset and preferences for ChatGPT. The extension does not call an AI API or send the schedule anywhere.
+Open **Advanced Planner** from the popup, or beside Schedule Builder's course search.
 
-Sections showing `Open 0 / Waitlist 0`, conflicts with your current Schedule, or overlap with a Never time block are excluded. Waitlist-only and TBA results remain visibly flagged and require user review.
+1. Type the courses you want (e.g. `CHE 002A`) and hit **Continue**.
+2. Slide how much you like each time of day, then each weekday, then whether class times or professor ratings matter more.
+3. The planner lists the best combinations as complete schedule cards with class times, seats, and professor details. Add a whole schedule, or build new combinations around one section you like.
+
+Preferences rank options, they never filter them out. If no perfect schedule exists — overlapping classes, no open seats, a clash with something you already saved — you still get the closest options, with a banner saying exactly what had to give.
 
 ## Branches
 

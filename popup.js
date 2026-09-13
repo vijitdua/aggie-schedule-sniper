@@ -6,9 +6,9 @@ const sniperToggle = document.getElementById("sniperToggle");
 const countdownToggle = document.getElementById("countToggle");
 const waitingHelpersToggle = document.getElementById("waitingHelpersToggle");
 const professorRatingsToggle = document.getElementById("professorRatingsToggle");
-const smartPlannerToggle = document.getElementById("smartPlannerToggle");
+const advancedPlannerToggle = document.getElementById("advancedPlannerToggle");
 const exportCalendarBtn = document.getElementById("exportCalendarBtn");
-const smartPlannerBtn = document.getElementById("smartPlannerBtn");
+const advancedPlannerBtn = document.getElementById("advancedPlannerBtn");
 const modeBadge = document.getElementById("modeBadge");
 const shareBtn = document.getElementById("shareBtn");
 const infoBtn = document.getElementById("infoBtn");
@@ -26,7 +26,7 @@ const devAutoRegisterToggle = document.getElementById("devAutoRegisterToggle");
 const devShowCountdownToggle = document.getElementById("devShowCountdownToggle");
 const devKeepLoggedInToggle = document.getElementById("devKeepLoggedInToggle");
 const devProfessorRatingsToggle = document.getElementById("devProfessorRatingsToggle");
-const devSmartPlannerToggle = document.getElementById("devSmartPlannerToggle");
+const devAdvancedPlannerToggle = document.getElementById("devAdvancedPlannerToggle");
 const isEmbedded = new URLSearchParams(location.search).get("embedded") === "1";
 const isDeveloperPage =
   new URLSearchParams(location.search).get("developer") === "1";
@@ -37,7 +37,7 @@ const DEFAULT_SETTINGS = {
   keepSessionAlive: true,
   keepScreenAwake: true,
   showProfessorRatings: true,
-  showSmartSchedulePlanner: true,
+  showAdvancedPlanner: true,
 };
 
 let snackbarTimer = 0;
@@ -205,7 +205,7 @@ function initializeDevUserToggles() {
     !devShowCountdownToggle ||
     !devKeepLoggedInToggle ||
     !devProfessorRatingsToggle ||
-    !devSmartPlannerToggle
+    !devAdvancedPlannerToggle
   ) {
     return;
   }
@@ -215,7 +215,7 @@ function initializeDevUserToggles() {
     devShowCountdownToggle.checked = !!saved.showCountdown;
     devKeepLoggedInToggle.checked = isWaitingHelpersEnabled(saved);
     devProfessorRatingsToggle.checked = saved.showProfessorRatings !== false;
-    devSmartPlannerToggle.checked = saved.showSmartSchedulePlanner !== false;
+    devAdvancedPlannerToggle.checked = saved.showAdvancedPlanner !== false;
   };
 
   chrome.storage.sync.get(DEFAULT_SETTINGS, applySyncSettings);
@@ -238,9 +238,9 @@ function initializeDevUserToggles() {
     });
   });
 
-  devSmartPlannerToggle.addEventListener("change", () => {
+  devAdvancedPlannerToggle.addEventListener("change", () => {
     chrome.storage.sync.set({
-      showSmartSchedulePlanner: devSmartPlannerToggle.checked,
+      showAdvancedPlanner: devAdvancedPlannerToggle.checked,
     });
   });
 
@@ -418,14 +418,14 @@ function setWaitingHelpers(enabled) {
 }
 
 function initializePopup() {
-  const applySmartPlannerAvailability = (enabled) => {
-    if (!smartPlannerBtn) {
+  const applyAdvancedPlannerAvailability = (enabled) => {
+    if (!advancedPlannerBtn) {
       return;
     }
-    smartPlannerBtn.disabled = !enabled;
-    smartPlannerBtn.title = enabled
-      ? "Open Smart Schedule Planner"
-      : "Enable Smart Schedule Planner above to open it";
+    advancedPlannerBtn.disabled = !enabled;
+    advancedPlannerBtn.title = enabled
+      ? "Open Advanced Planner"
+      : "Enable Advanced Planner above to open it";
   };
 
   chrome.storage.sync.get(DEFAULT_SETTINGS, (saved) => {
@@ -435,10 +435,10 @@ function initializePopup() {
     if (professorRatingsToggle) {
       professorRatingsToggle.checked = saved.showProfessorRatings !== false;
     }
-    if (smartPlannerToggle) {
-      smartPlannerToggle.checked = saved.showSmartSchedulePlanner !== false;
+    if (advancedPlannerToggle) {
+      advancedPlannerToggle.checked = saved.showAdvancedPlanner !== false;
     }
-    applySmartPlannerAvailability(saved.showSmartSchedulePlanner !== false);
+    applyAdvancedPlannerAvailability(saved.showAdvancedPlanner !== false);
     updateModeBadge();
   });
 
@@ -464,12 +464,11 @@ function initializePopup() {
     updateModeBadge();
   });
 
-  smartPlannerToggle?.addEventListener("change", () => {
+  advancedPlannerToggle?.addEventListener("change", () => {
     chrome.storage.sync.set({
-      showSmartSchedulePlanner: smartPlannerToggle.checked,
+      showAdvancedPlanner: advancedPlannerToggle.checked,
     });
-    applySmartPlannerAvailability(smartPlannerToggle.checked);
-    updateModeBadge();
+    applyAdvancedPlannerAvailability(advancedPlannerToggle.checked);
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -479,9 +478,9 @@ function initializePopup() {
     if (changes.showProfessorRatings && professorRatingsToggle) {
       professorRatingsToggle.checked = changes.showProfessorRatings.newValue !== false;
     }
-    if (changes.showSmartSchedulePlanner && smartPlannerToggle) {
-      smartPlannerToggle.checked = changes.showSmartSchedulePlanner.newValue !== false;
-      applySmartPlannerAvailability(changes.showSmartSchedulePlanner.newValue !== false);
+    if (changes.showAdvancedPlanner && advancedPlannerToggle) {
+      advancedPlannerToggle.checked = changes.showAdvancedPlanner.newValue !== false;
+      applyAdvancedPlannerAvailability(changes.showAdvancedPlanner.newValue !== false);
     }
   });
 
@@ -501,14 +500,14 @@ function initializePopup() {
     void exportCalendarFromPage();
   });
 
-  smartPlannerBtn?.addEventListener("click", () => {
-    void openSmartPlannerFromPopup();
+  advancedPlannerBtn?.addEventListener("click", () => {
+    void openAdvancedPlannerFromPopup();
   });
 }
 
-async function openSmartPlannerFromPopup() {
+async function openAdvancedPlannerFromPopup() {
   if (isEmbedded && window.parent !== window) {
-    window.parent.postMessage({ type: "ASS_OPEN_SMART_PLANNER" }, "*");
+    window.parent.postMessage({ type: "ASS_OPEN_ADVANCED_PLANNER" }, "*");
     return;
   }
 
@@ -520,7 +519,7 @@ async function openSmartPlannerFromPopup() {
       return;
     }
     const response = await chrome.tabs.sendMessage(tab.id, {
-      type: "ASS_OPEN_SMART_PLANNER",
+      type: "ASS_OPEN_ADVANCED_PLANNER",
     });
     if (!response?.ok) {
       showSnackbar("Open Schedule Builder on this tab first", "error");

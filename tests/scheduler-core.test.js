@@ -11,21 +11,19 @@ function section({
   start,
   end,
   availability = "open",
-  openSeats = availability === "open" ? 1 : 0,
-  waitlistCount = availability === "waitlist" ? 1 : 0,
   existingScheduleConflict = false,
 }) {
   return {
     courseKey,
     section: `${courseKey} ${sectionName}`,
     crn: `${courseKey}-${sectionName}`,
+    saveKey: `${courseKey}-${sectionName}`,
     instructors: [
       {
         displayName: instructor,
         rmp: rating == null ? null : { rating, reviewCount: 10 },
       },
     ],
-    selectedInstructor: null,
     meetings: [
       {
         type: "Lecture",
@@ -37,10 +35,17 @@ function section({
       },
     ],
     availability,
-    openSeats,
-    waitlistCount,
+    openSeats: availability === "open" ? 1 : 0,
+    waitlistCount: availability === "waitlist" ? 1 : 0,
     existingScheduleConflict,
   };
+}
+
+const MORNING = { start: 600, end: 660 };
+const AFTERNOON = { start: 780, end: 840 };
+
+function firstInstructor(result, index = 0) {
+  return result.options[index].sections[0].selectedInstructor.displayName;
 }
 
 test("parses and normalizes common UC Davis course-code formats", () => {
@@ -63,20 +68,11 @@ test("normalizes the Schedule Builder result shape captured in the CHE 002A arch
       subjectCode: "CHE",
       courseNum: "002A",
       shortDesc: "CHE 002A A01",
-      seqNum: "A01",
       printCRN: "24335",
       hidCRN: "24335",
       title: "General Chemistry",
-      unitsLow: 5,
     },
-    instructor: [
-      {
-        instructorName: "O. Gulacar",
-        firstName: "Omer",
-        lastName: "Gulacar",
-        instructorEmail: "ogulacar@ucdavis.edu",
-      },
-    ],
+    instructor: [{ instructorName: "O. Gulacar", instructorEmail: "ogulacar@ucdavis.edu" }],
     meeting: [
       {
         description: "Lecture",
@@ -90,17 +86,16 @@ test("normalizes the Schedule Builder result shape captured in the CHE 002A arch
       },
     ],
     seats: { seatsAvail: "0", waitCount: "0" },
-    finalExam: { examDate: "December, 07 2026 13:00:00" },
     existingScheduleConflict: true,
-    existingScheduleConflictText: "This course has a time conflict with Existing Course",
   });
   assert.equal(normalized.courseKey, "CHE 002A");
   assert.equal(normalized.crn, "24335");
   assert.equal(normalized.availability, "unavailable");
   assert.equal(normalized.existingScheduleConflict, true);
-  assert.match(normalized.existingScheduleConflictText, /Existing Course/);
   assert.deepEqual(normalized.meetings[0].days, ["T", "R"]);
   assert.equal(normalized.meetings[0].startMinutes, 13 * 60 + 40);
+  // Instructor emails must never reach the planner.
+  assert.deepEqual(normalized.instructors[0], { displayName: "O. Gulacar", rmp: null });
 });
 
 test("detects overlapping meetings only when they share a day", () => {
@@ -111,352 +106,224 @@ test("detects overlapping meetings only when they share a day", () => {
   assert.equal(core.meetingsConflict(monday, tuesday), false);
 });
 
-test("manual scheduling respects professor choices and avoids conflicts", () => {
+test("unknown slider values fall back to the neutral middle stop", () => {
+  const preferences = core.normalizeSchedulerPreferences({
+    timeBlocks: { morning: "preferred", afternoon: 99 },
+    days: { M: 0, Q: 4 },
+  });
+  assert.equal(preferences.timeBlocks.morning, 2);
+  assert.equal(preferences.timeBlocks.afternoon, 2);
+  assert.equal(preferences.days.M, 0);
+  assert.equal(preferences.days.W, 2);
+  assert.equal(preferences.days.Q, undefined);
+});
+
+test("returns every conflict-free combination, best first", () => {
   const groups = [
     {
       courseKey: "CHE 002A",
       sections: [
-        section({
-          courseKey: "CHE 002A",
-          section: "A01",
-          instructor: "A. Alpha",
-          rating: 4.7,
-          days: ["M"],
-          start: 600,
-          end: 660,
-        }),
+        section({ courseKey: "CHE 002A", section: "A01", instructor: "A. Alpha", rating: 4.7, days: ["M"], ...MORNING }),
       ],
     },
     {
       courseKey: "MAT 021A",
       sections: [
-        section({
-          courseKey: "MAT 021A",
-          section: "A01",
-          instructor: "B. Beta",
-          rating: 4.0,
-          days: ["M"],
-          start: 630,
-          end: 690,
-        }),
-        section({
-          courseKey: "MAT 021A",
-          section: "A02",
-          instructor: "B. Beta",
-          rating: 4.0,
-          days: ["T"],
-          start: 630,
-          end: 690,
-        }),
+        // Overlaps CHE 002A, so it can never appear in an option.
+        section({ courseKey: "MAT 021A", section: "A01", instructor: "B. Beta", rating: 5, days: ["M"], start: 630, end: 690 }),
+        section({ courseKey: "MAT 021A", section: "A02", instructor: "B. Beta", rating: 5, days: ["T"], start: 630, end: 690 }),
+        section({ courseKey: "MAT 021A", section: "A03", instructor: "C. Gamma", rating: 2, days: ["W"], start: 630, end: 690 }),
       ],
     },
   ];
-  const result = core.generateSchedule(groups, {
-    selections: new Map([
-      ["CHE 002A", "A. Alpha"],
-      ["MAT 021A", "B. Beta"],
-    ]),
-  });
+  const result = core.generateSchedules(groups, { ratingWeight: 1 });
   assert.equal(result.ok, true);
-  assert.equal(result.schedule.find((item) => item.courseKey === "MAT 021A").section, "MAT 021A A02");
+  // The overlapping A01 is only reachable by relaxing conflicts, which this
+  // course set never needs, so it must not appear.
+  assert.equal(result.options.length, 2);
+  assert.equal(result.options[0].sections[1].section, "MAT 021A A02");
+  assert.equal(result.options[1].sections[1].section, "MAT 021A A03");
+  assert.equal(result.options[0].averageRating, (4.7 + 5) / 2);
 });
 
-test("rating auto-mode prefers an all-open schedule over a higher-rated waitlist", () => {
+test("maxOptions caps how many combinations come back", () => {
+  const groups = [
+    {
+      courseKey: "CHE 002A",
+      sections: [1, 2, 3, 4, 5].map((index) =>
+        section({
+          courseKey: "CHE 002A",
+          section: `A0${index}`,
+          instructor: `Prof ${index}`,
+          rating: index,
+          days: ["M"],
+          start: 540 + index * 70,
+          end: 590 + index * 70,
+        }),
+      ),
+    },
+  ];
+  assert.equal(core.generateSchedules(groups, { maxOptions: 2 }).options.length, 2);
+  assert.equal(core.generateSchedules(groups, {}).options.length, 5);
+});
+
+test("building around a section keeps it in every returned combination", () => {
   const groups = [
     {
       courseKey: "CHE 002A",
       sections: [
-        section({
-          courseKey: "CHE 002A",
-          section: "A01",
-          instructor: "Wait List",
-          rating: 5,
-          days: ["M"],
-          start: 600,
-          end: 660,
-          availability: "waitlist",
-        }),
-        section({
-          courseKey: "CHE 002A",
-          section: "A02",
-          instructor: "Open Seats",
-          rating: 3,
-          days: ["T"],
-          start: 600,
-          end: 660,
-          availability: "open",
-        }),
+        section({ courseKey: "CHE 002A", section: "A01", instructor: "A. Alpha", rating: 5, days: ["M"], ...MORNING }),
+        section({ courseKey: "CHE 002A", section: "A02", instructor: "B. Beta", rating: 2, days: ["T"], ...MORNING }),
+      ],
+    },
+    {
+      courseKey: "MAT 021A",
+      sections: [
+        section({ courseKey: "MAT 021A", section: "A01", instructor: "C. Gamma", rating: 4, days: ["W"], ...MORNING }),
+        section({ courseKey: "MAT 021A", section: "A02", instructor: "D. Delta", rating: 3, days: ["R"], ...MORNING }),
       ],
     },
   ];
-  const result = core.generateSchedule(groups, { autoRatings: true });
-  assert.equal(result.ok, true);
-  assert.equal(result.schedule[0].selectedInstructor.displayName, "Open Seats");
-  assert.equal(result.hasWaitlist, false);
+  const pinned = new Map([["CHE 002A", "CHE 002A-A02"]]);
+  const result = core.generateSchedules(groups, { pinned });
+  assert.equal(result.options.length, 2);
+  assert.equal(
+    result.options.every((option) =>
+      option.sections.some((item) => item.saveKey === "CHE 002A-A02"),
+    ),
+    true,
+  );
 });
 
-test("schedule generation never selects a 0/0 section", () => {
+test("waitlisted sections rank last, and compete once they are allowed", () => {
   const groups = [
     {
       courseKey: "CHE 002A",
       sections: [
-        section({
-          courseKey: "CHE 002A",
-          section: "A01",
-          instructor: "Closed Course",
-          rating: 5,
-          days: ["M"],
-          start: 600,
-          end: 660,
-          availability: "unavailable",
-        }),
+        section({ courseKey: "CHE 002A", section: "A01", instructor: "Wait List", rating: 5, days: ["M"], ...MORNING, availability: "waitlist" }),
+        section({ courseKey: "CHE 002A", section: "A02", instructor: "Open Seats", rating: 1, days: ["T"], ...MORNING }),
       ],
     },
   ];
-  const result = core.generateSchedule(groups, { autoRatings: true });
+  // The higher-rated section is waitlisted, so it still sorts last by default.
+  const byDefault = core.generateSchedules(groups, { ratingWeight: 1 });
+  assert.equal(firstInstructor(byDefault), "Open Seats");
+  assert.deepEqual(byDefault.options[0].limits, []);
+  assert.deepEqual(byDefault.options[1].limits, ["waitlist"]);
+
+  const allowed = core.generateSchedules(groups, { ratingWeight: 1, includeWaitlist: true });
+  assert.equal(firstInstructor(allowed), "Wait List");
+  assert.deepEqual(allowed.options[0].limits, []);
+  assert.equal(allowed.options[0].hasWaitlist, true);
+});
+
+test("still returns closed and clashing sections when nothing clean exists", () => {
+  const result = core.generateSchedules([
+    {
+      courseKey: "ECS 160",
+      sections: [
+        section({ courseKey: "ECS 160", section: "A01", instructor: "Closed", rating: 5, days: ["M"], ...MORNING, availability: "unavailable" }),
+        section({ courseKey: "ECS 160", section: "A02", instructor: "Clashes", rating: 3, days: ["M"], ...MORNING, existingScheduleConflict: true }),
+      ],
+    },
+  ], {});
+  assert.equal(result.ok, true);
+  // Clashing with the saved schedule is a smaller compromise than no seats.
+  assert.equal(firstInstructor(result), "Clashes");
+  assert.deepEqual(result.options[0].limits, ["existingConflict"]);
+  assert.deepEqual(result.options[1].limits, ["closed"]);
+});
+
+test("falls back to overlapping options when no timetable fits", () => {
+  const clash = { days: ["M"], ...MORNING };
+  const result = core.generateSchedules([
+    {
+      courseKey: "ECS 160",
+      sections: [section({ courseKey: "ECS 160", section: "A01", instructor: "A. Alpha", rating: 4, ...clash })],
+    },
+    {
+      courseKey: "MAT 021A",
+      sections: [section({ courseKey: "MAT 021A", section: "A01", instructor: "B. Beta", rating: 4, ...clash })],
+    },
+  ], {});
+  assert.equal(result.ok, true);
+  assert.equal(result.options[0].sections.length, 2);
+  assert.deepEqual(result.options[0].limits, ["overlap"]);
+  assert.deepEqual(result.options[0].overlaps, [["ECS 160 A01", "MAT 021A A01"]]);
+});
+
+test("only gives up when a course has no sections at all", () => {
+  const result = core.generateSchedules([{ courseKey: "CHE 002A", sections: [] }], {});
   assert.equal(result.ok, false);
-  assert.equal(result.reason, "no_eligible_sections");
+  assert.equal(result.reason, "no_sections");
+  assert.equal(result.courseKey, "CHE 002A");
 });
 
-test("schedule generation excludes sections that conflict with the current Schedule", () => {
+test("ratingWeight slides the ranking between class times and professor ratings", () => {
   const groups = [
     {
       courseKey: "CHE 002A",
       sections: [
-        section({
-          courseKey: "CHE 002A",
-          section: "A01",
-          instructor: "Higher Rating",
-          rating: 5,
-          days: ["M"],
-          start: 600,
-          end: 660,
-          existingScheduleConflict: true,
-        }),
-        section({
-          courseKey: "CHE 002A",
-          section: "A02",
-          instructor: "No Conflict",
-          rating: 3.5,
-          days: ["T"],
-          start: 600,
-          end: 660,
-        }),
+        section({ courseKey: "CHE 002A", section: "A01", instructor: "Highest Rating", rating: 5, days: ["T"], ...AFTERNOON }),
+        section({ courseKey: "CHE 002A", section: "A02", instructor: "Best Time", rating: 2, days: ["M"], ...MORNING }),
       ],
     },
   ];
-  const result = core.generateSchedule(groups, { autoRatings: true });
-  assert.equal(result.ok, true);
-  assert.equal(result.schedule[0].selectedInstructor.displayName, "No Conflict");
+  const preferences = {
+    days: { M: 4, T: 0 },
+    timeBlocks: { morning: 4, afternoon: 0 },
+  };
+  assert.equal(firstInstructor(core.generateSchedules(groups, { preferences, ratingWeight: 0 })), "Best Time");
+  assert.equal(firstInstructor(core.generateSchedules(groups, { preferences, ratingWeight: 1 })), "Highest Rating");
 });
 
-test("invalid maxExplored values fall back to the default search limit", () => {
+test("time match reflects how well a section lands on preferred days and times", () => {
   const groups = [
     {
       courseKey: "CHE 002A",
       sections: [
-        section({
-          courseKey: "CHE 002A",
-          section: "A01",
-          instructor: "A. Alpha",
-          rating: 4.5,
-          days: ["M"],
-          start: 600,
-          end: 660,
-        }),
+        section({ courseKey: "CHE 002A", section: "A01", instructor: "A. Alpha", rating: 3, days: ["M"], ...MORNING }),
       ],
     },
   ];
-  for (const maxExplored of [0, -1, 0.5, Number.NaN, Number.POSITIVE_INFINITY]) {
-    const result = core.generateSchedule(groups, {
-      priority: "rating",
-      maxExplored,
-    });
+  const loved = core.generateSchedules(groups, {
+    preferences: { days: { M: 4 }, timeBlocks: { morning: 4 } },
+  });
+  const hated = core.generateSchedules(groups, {
+    preferences: { days: { M: 0 }, timeBlocks: { morning: 0 } },
+  });
+  assert.equal(loved.options[0].timeMatch, 1);
+  assert.equal(hated.options[0].timeMatch, 0);
+});
+
+test("invalid search limits fall back to the defaults", () => {
+  const groups = [
+    {
+      courseKey: "CHE 002A",
+      sections: [
+        section({ courseKey: "CHE 002A", section: "A01", instructor: "A. Alpha", rating: 4.5, days: ["M"], ...MORNING }),
+      ],
+    },
+  ];
+  for (const invalid of [0, -1, 0.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    const result = core.generateSchedules(groups, { maxExplored: invalid, maxOptions: invalid });
     assert.equal(result.ok, true);
     assert.equal(result.truncated, false);
+    assert.equal(result.options.length, 1);
   }
 });
 
-test("time and rating priority use opposite primary weights", () => {
-  const groups = [
-    {
-      courseKey: "CHE 002A",
-      sections: [
-        section({
-          courseKey: "CHE 002A",
-          section: "A01",
-          instructor: "Highest Rating",
-          rating: 5,
-          days: ["T"],
-          start: 780,
-          end: 840,
-        }),
-        section({
-          courseKey: "CHE 002A",
-          section: "A02",
-          instructor: "Best Time",
-          rating: 2,
-          days: ["M"],
-          start: 600,
-          end: 660,
-        }),
-      ],
-    },
-  ];
-  const preferences = {
-    preferredDays: ["M"],
-    timeBlocks: { morning: "preferred", afternoon: "avoid" },
-  };
-  const byTime = core.generateSchedule(groups, {
-    priority: "time",
-    preferences,
-  });
-  const byRating = core.generateSchedule(groups, {
-    priority: "rating",
-    preferences,
-  });
-  assert.equal(byTime.schedule[0].selectedInstructor.displayName, "Best Time");
-  assert.equal(byRating.schedule[0].selectedInstructor.displayName, "Highest Rating");
-});
-
-test("each automatic priority keeps the other factor as a tie-breaker", () => {
-  const ratingTie = [
-    {
-      courseKey: "CHE 002A",
-      sections: [
-        section({
-          courseKey: "CHE 002A",
-          section: "A01",
-          instructor: "Same Rating Bad Time",
-          rating: 4,
-          days: ["T"],
-          start: 780,
-          end: 840,
-        }),
-        section({
-          courseKey: "CHE 002A",
-          section: "A02",
-          instructor: "Same Rating Good Time",
-          rating: 4,
-          days: ["M"],
-          start: 600,
-          end: 660,
-        }),
-      ],
-    },
-  ];
-  const timeTie = [
-    {
-      courseKey: "MAT 021A",
-      sections: [
-        section({
-          courseKey: "MAT 021A",
-          section: "A01",
-          instructor: "Lower Rating",
-          rating: 2,
-          days: ["M"],
-          start: 600,
-          end: 660,
-        }),
-        section({
-          courseKey: "MAT 021A",
-          section: "A02",
-          instructor: "Higher Rating",
-          rating: 4.8,
-          days: ["M"],
-          start: 600,
-          end: 660,
-        }),
-      ],
-    },
-  ];
-  const preferences = {
-    preferredDays: ["M"],
-    timeBlocks: { morning: "preferred", afternoon: "avoid" },
-  };
-  const byRating = core.generateSchedule(ratingTie, {
-    priority: "rating",
-    preferences,
-  });
-  const byTime = core.generateSchedule(timeTie, {
-    priority: "time",
-    preferences,
-  });
-  assert.equal(byRating.schedule[0].selectedInstructor.displayName, "Same Rating Good Time");
-  assert.equal(byTime.schedule[0].selectedInstructor.displayName, "Higher Rating");
-});
-
-test("Never time blocks are hard exclusions in every planning mode", () => {
-  const groups = [
-    {
-      courseKey: "CHE 002A",
-      sections: [
-        section({
-          courseKey: "CHE 002A",
-          section: "A01",
-          instructor: "Morning Professor",
-          rating: 5,
-          days: ["M"],
-          start: 600,
-          end: 660,
-        }),
-        section({
-          courseKey: "CHE 002A",
-          section: "A02",
-          instructor: "Afternoon Professor",
-          rating: 3,
-          days: ["M"],
-          start: 780,
-          end: 840,
-        }),
-      ],
-    },
-  ];
-  const preferences = { timeBlocks: { morning: "never" } };
-  for (const priority of ["time", "rating"]) {
-    const result = core.generateSchedule(groups, { priority, preferences });
-    assert.equal(result.ok, true);
-    assert.equal(result.schedule[0].selectedInstructor.displayName, "Afternoon Professor");
-  }
-  const manual = core.generateSchedule(groups, {
-    priority: "manual",
-    preferences,
-    selections: new Map([["CHE 002A", "Morning Professor"]]),
-  });
-  assert.equal(manual.ok, false);
-  assert.equal(manual.reason, "no_eligible_sections");
-  assert.equal(manual.blockedByTimePreferences, true);
-});
-
-test("prompt includes RMP, seat status, meetings, and scheduling preferences", () => {
-  const groups = [
-    {
-      courseKey: "CHE 002A",
-      title: "General Chemistry",
-      sections: [
-        section({
-          courseKey: "CHE 002A",
-          section: "A01",
-          instructor: "O. Gulacar",
-          rating: 4.5,
-          days: ["T", "R"],
-          start: 820,
-          end: 900,
-          existingScheduleConflict: true,
-        }),
-      ],
-    },
-  ];
-  const prompt = core.buildPrompt(groups, "Fall 2026", {
-    preferredDays: ["T", "R"],
-    timeBlocks: { morning: "preferred", evening: "never" },
-  });
-  assert.match(prompt, /CHE 002A/);
-  assert.match(prompt, /RMP 4\.5\/5/);
-  assert.match(prompt, /CRN CHE 002A-A01/);
-  assert.match(prompt, /TR 1:40 PM-3:00 PM/);
-  assert.match(prompt, /current Schedule Builder schedule/);
-  assert.match(prompt, /CONFLICTS WITH CURRENT SCHEDULE/);
-  assert.match(prompt, /Preferred weekdays: Tuesday, Thursday/);
-  assert.match(prompt, /Never schedule in: Evening/);
+test("seat summaries stay short and use the RMP badge tones", () => {
+  assert.deepEqual(
+    core.seatSummary({ availability: "open", openSeats: 12 }),
+    { label: "12", tone: "good" },
+  );
+  assert.deepEqual(
+    core.seatSummary({ availability: "waitlist", waitlistCount: 4 }),
+    { label: "WL 4", tone: "mid" },
+  );
+  assert.deepEqual(
+    core.seatSummary({ availability: "unavailable" }),
+    { label: "Full", tone: "low" },
+  );
 });

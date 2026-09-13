@@ -52,7 +52,7 @@
       keepSessionAlive: state.settings.keepSessionAlive,
       keepScreenAwake: state.settings.keepScreenAwake,
       showProfessorRatings: state.settings.showProfessorRatings,
-      showSmartSchedulePlanner: state.settings.showSmartSchedulePlanner,
+      showAdvancedPlanner: state.settings.showAdvancedPlanner,
       browserTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
   }
@@ -64,7 +64,7 @@
       keepSessionAlive: true,
       keepScreenAwake: true,
       showProfessorRatings: true,
-      showSmartSchedulePlanner: true,
+      showAdvancedPlanner: true,
     };
 
     chrome.storage.sync.get(defaultSettings, (storedValues) => {
@@ -76,8 +76,7 @@
         state.settings.keepSessionAlive = true;
         state.settings.keepScreenAwake = true;
         state.settings.showProfessorRatings = true;
-        state.settings.showSmartSchedulePlanner =
-          storedValues.showSmartSchedulePlanner !== false;
+        state.settings.showAdvancedPlanner = true;
 
         chrome.storage.sync.set(
           {
@@ -100,8 +99,8 @@
       state.settings.keepScreenAwake = !!storedValues.keepScreenAwake;
       state.settings.showProfessorRatings =
         storedValues.showProfessorRatings !== false;
-      state.settings.showSmartSchedulePlanner =
-        storedValues.showSmartSchedulePlanner !== false;
+      state.settings.showAdvancedPlanner =
+        storedValues.showAdvancedPlanner !== false;
       onReady();
     });
   }
@@ -117,10 +116,10 @@
     api.initializePassTrackingState(passTimes);
     void api.maybeAttemptAutoRegistration(activePass);
     api.injectScheduleBuilderExportButton?.();
-    if (state.settings.showSmartSchedulePlanner) {
-      api.ensureAutoSchedulerUi?.();
+    if (state.settings.showAdvancedPlanner) {
+      api.ensureAdvancedPlannerUi?.();
     } else {
-      api.removeAutoSchedulerUi?.();
+      api.removeAdvancedPlannerUi?.();
     }
     if (state.settings.showProfessorRatings) {
       api.syncProfessorRatings?.();
@@ -153,8 +152,8 @@
       api.openDeveloperPanel?.();
       return;
     }
-    if (event.data?.type === "ASS_OPEN_SMART_PLANNER") {
-      api.openAutoSchedulerModal?.();
+    if (event.data?.type === "ASS_OPEN_ADVANCED_PLANNER") {
+      api.openAdvancedPlannerModal?.();
       return;
     }
     if (event.data?.type === "ASS_CLOSE_DEV_MENU") {
@@ -209,7 +208,7 @@
         Object.prototype.hasOwnProperty.call(changes, "keepSessionAlive") ||
         Object.prototype.hasOwnProperty.call(changes, "keepScreenAwake") ||
         Object.prototype.hasOwnProperty.call(changes, "showProfessorRatings") ||
-        Object.prototype.hasOwnProperty.call(changes, "showSmartSchedulePlanner");
+        Object.prototype.hasOwnProperty.call(changes, "showAdvancedPlanner");
 
       if (changes.autoRegister) {
         state.settings.autoRegister = !!changes.autoRegister.newValue;
@@ -232,9 +231,9 @@
           changes.showProfessorRatings.newValue !== false;
       }
 
-      if (changes.showSmartSchedulePlanner) {
-        state.settings.showSmartSchedulePlanner =
-          changes.showSmartSchedulePlanner.newValue !== false;
+      if (changes.showAdvancedPlanner) {
+        state.settings.showAdvancedPlanner =
+          changes.showAdvancedPlanner.newValue !== false;
       }
 
       if (touched) {
@@ -244,14 +243,14 @@
           keepSessionAlive: state.settings.keepSessionAlive,
           keepScreenAwake: state.settings.keepScreenAwake,
           showProfessorRatings: state.settings.showProfessorRatings,
-          showSmartSchedulePlanner: state.settings.showSmartSchedulePlanner,
+          showAdvancedPlanner: state.settings.showAdvancedPlanner,
           fromStorage: {
             autoRegister: changes.autoRegister,
             showCountdown: changes.showCountdown,
             keepSessionAlive: changes.keepSessionAlive,
             keepScreenAwake: changes.keepScreenAwake,
             showProfessorRatings: changes.showProfessorRatings,
-            showSmartSchedulePlanner: changes.showSmartSchedulePlanner,
+            showAdvancedPlanner: changes.showAdvancedPlanner,
           },
         });
       }

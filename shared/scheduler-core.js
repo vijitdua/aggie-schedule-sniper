@@ -1,6 +1,6 @@
 /**
- * Pure helpers for course normalization, conflict detection, schedule search,
- * and GPT prompt generation. Shared by the content script and Node tests.
+ * Pure helpers for course normalization, conflict detection, and schedule
+ * search. Shared by the content script and Node tests.
  */
 (function (root, factory) {
   const api = factory();
@@ -31,7 +31,25 @@
     { key: "afternoon", label: "Afternoon", rangeLabel: "12:00–5:00 PM", startMinutes: 720, endMinutes: 1020 },
     { key: "evening", label: "Evening", rangeLabel: "After 5:00 PM", startMinutes: 1020, endMinutes: 1440 },
   ];
-  const TIME_PREFERENCE_LEVELS = ["preferred", "neutral", "avoid", "never"];
+
+  const PREFERENCE_STOPS = 5;
+  const NEUTRAL_PREFERENCE = 2;
+  const NEUTRAL_QUALITY = 0.5;
+  // Time-of-day matters a little more than which weekday a class lands on.
+  const DAY_SHARE = 0.4;
+  const QUALITY_STEPS = 1000;
+  // What a section makes you give up, cheapest first. Nothing is ever excluded
+  // outright: any cost at all outranks every quality difference, so a
+  // compromised option can never beat a clean one, but it still gets shown
+  // when there is nothing better.
+  const LIMIT_COST = {
+    unknownSeats: 1,
+    waitlist: 3,
+    overlap: 9,
+    existingConflict: 9,
+    closed: 12,
+  };
+  const MAX_SECTION_COST = LIMIT_COST.closed + LIMIT_COST.existingConflict;
 
   function normalizeText(value) {
     return String(value || "").replace(/\s+/g, " ").trim();
@@ -124,9 +142,6 @@
     );
     return {
       displayName: displayName || "TBA",
-      firstName: normalizeText(raw?.firstName),
-      lastName: normalizeText(raw?.lastName),
-      email: normalizeText(raw?.instructorEmail),
       rmp: raw?.rmp || null,
     };
   }
@@ -157,7 +172,6 @@
     return {
       courseKey,
       section: normalizeText(course.shortDesc),
-      sectionCode: normalizeText(course.seqNum),
       crn: normalizeText(course.printCRN || course.crn),
       saveKey: normalizeText(
         course.printCRN && course.printCRN !== "@"
@@ -165,17 +179,17 @@
           : course.hidCRN || course.crn || course.printCRN,
       ),
       title: normalizeText(course.title),
-      units: numberOrNull(course.unitsLow),
       instructors,
       meetings: (Array.isArray(raw?.meeting) ? raw.meeting : []).map(normalizeMeeting),
-      finalExam: normalizeText(raw?.finalExam?.examDate),
       openSeats,
       waitlistCount,
       availability: classifyAvailability(openSeats, waitlistCount),
-      seatError: normalizeText(raw?.seatError),
       existingScheduleConflict: raw?.existingScheduleConflict === true,
-      existingScheduleConflictText: normalizeText(raw?.existingScheduleConflictText),
     };
+  }
+
+  function sectionKey(section) {
+    return section?.saveKey || section?.crn || "";
   }
 
   function meetingsConflict(first, second) {
@@ -203,264 +217,271 @@
     return value == null ? -1 : value;
   }
 
-  function bestInstructor(section, requiredName) {
-    if (requiredName) {
-      return section.instructors.find((item) => item.displayName === requiredName) || null;
-    }
+  function bestRatedInstructor(section) {
     return [...section.instructors].sort((a, b) => ratingValue(b) - ratingValue(a))[0] || null;
   }
 
-  function selectedNameFor(selections, courseKey) {
-    if (!selections) {
-      return null;
-    }
-    if (typeof selections.get === "function") {
-      return selections.get(courseKey) || null;
-    }
-    return selections[courseKey] || null;
+  /**
+   * Every preference is a slider position from 0 ("not ideal") to
+   * `PREFERENCE_STOPS - 1` ("perfect"), defaulting to the middle stop. Nothing
+   * is a hard exclusion; a low score only sinks an option down the ranking.
+   */
+  function preferenceLevel(value) {
+    const level = Math.round(Number(value));
+    return level >= 0 && level < PREFERENCE_STOPS ? level : NEUTRAL_PREFERENCE;
   }
 
   function normalizeSchedulerPreferences(raw) {
     const source = raw && typeof raw === "object" ? raw : {};
-    const preferredDays = [...new Set(
-      (Array.isArray(source.preferredDays) ? source.preferredDays : [])
-        .map((day) => String(day || "").toUpperCase())
-        .filter((day) => WEEKDAY_OPTIONS.some((option) => option.key === day)),
-    )];
     const timeBlocks = {};
     for (const block of TIME_BLOCKS) {
-      const level = String(source.timeBlocks?.[block.key] || "neutral").toLowerCase();
-      timeBlocks[block.key] = TIME_PREFERENCE_LEVELS.includes(level)
-        ? level
-        : "neutral";
+      timeBlocks[block.key] = preferenceLevel(source.timeBlocks?.[block.key]);
     }
-    return { preferredDays, timeBlocks };
+    const days = {};
+    for (const option of WEEKDAY_OPTIONS) {
+      days[option.key] = preferenceLevel(source.days?.[option.key]);
+    }
+    return { timeBlocks, days };
+  }
+
+  function levelQuality(level) {
+    return preferenceLevel(level) / (PREFERENCE_STOPS - 1);
   }
 
   function overlapMinutes(startA, endA, startB, endB) {
     return Math.max(0, Math.min(endA, endB) - Math.max(startA, startB));
   }
 
-  function timePreferenceScore(section, rawPreferences) {
-    const preferences = normalizeSchedulerPreferences(rawPreferences);
-    const preferredDays = new Set(preferences.preferredDays);
-    const usesDayPreferences = preferredDays.size > 0;
-    const levelQuality = {
-      preferred: 1,
-      neutral: 0.5,
-      avoid: 0,
-    };
-    let scheduledMinutes = 0;
-    let preferredDayMinutes = 0;
-    let weightedTimeMinutes = 0;
+  /** How much of a meeting falls inside time blocks the student likes. */
+  function meetingTimeQuality(meeting, timeBlocks) {
+    let covered = 0;
+    let weighted = 0;
+    for (const block of TIME_BLOCKS) {
+      const overlap = overlapMinutes(
+        meeting.startMinutes,
+        meeting.endMinutes,
+        block.startMinutes,
+        block.endMinutes,
+      );
+      covered += overlap;
+      weighted += overlap * levelQuality(timeBlocks[block.key]);
+    }
+    return covered ? weighted / covered : NEUTRAL_QUALITY;
+  }
 
+  /** 0..1 score for how well a section matches the time and day sliders. */
+  function preferenceQuality(section, preferences) {
+    let scheduledMinutes = 0;
+    let weighted = 0;
     for (const meeting of section?.meetings || []) {
-      if (
-        meeting?.isTba ||
-        meeting?.startMinutes == null ||
-        meeting?.endMinutes == null ||
-        meeting.endMinutes <= meeting.startMinutes
-      ) {
+      const duration = meeting?.isTba ? 0 : meeting.endMinutes - meeting.startMinutes;
+      if (!(duration > 0)) {
         continue;
       }
-      const days = Array.isArray(meeting.days) ? meeting.days : [];
-      for (const day of days) {
-        const duration = meeting.endMinutes - meeting.startMinutes;
+      const timeQuality = meetingTimeQuality(meeting, preferences.timeBlocks);
+      for (const day of meeting.days || []) {
+        const dayQuality = levelQuality(preferences.days[day]);
         scheduledMinutes += duration;
-        if (preferredDays.has(day)) {
-          preferredDayMinutes += duration;
-        }
-        for (const block of TIME_BLOCKS) {
-          const overlap = overlapMinutes(
-            meeting.startMinutes,
-            meeting.endMinutes,
-            block.startMinutes,
-            block.endMinutes,
-          );
-          if (!overlap) {
-            continue;
-          }
-          const level = preferences.timeBlocks[block.key];
-          if (level === "never") {
-            return {
-              hardBlocked: true,
-              quality: 0,
-              dayQuality: usesDayPreferences ? 0 : 0.5,
-              timeQuality: 0,
-            };
-          }
-          weightedTimeMinutes += overlap * levelQuality[level];
-        }
+        weighted += duration * (timeQuality * (1 - DAY_SHARE) + dayQuality * DAY_SHARE);
       }
     }
-
-    if (!scheduledMinutes) {
-      return { hardBlocked: false, quality: 0.5, dayQuality: 0.5, timeQuality: 0.5 };
-    }
-    const dayQuality = usesDayPreferences
-      ? preferredDayMinutes / scheduledMinutes
-      : 0.5;
-    const timeQuality = weightedTimeMinutes / scheduledMinutes;
-    return {
-      hardBlocked: false,
-      quality: usesDayPreferences
-        ? dayQuality * 0.35 + timeQuality * 0.65
-        : timeQuality,
-      dayQuality,
-      timeQuality,
-    };
+    return scheduledMinutes ? weighted / scheduledMinutes : NEUTRAL_QUALITY;
   }
 
   function compareCandidate(a, b) {
     if (a._score !== b._score) {
       return b._score - a._score;
     }
-    return String(a.section).localeCompare(String(b.section), undefined, {
-      numeric: true,
-    });
+    return String(a.section).localeCompare(String(b.section), undefined, { numeric: true });
   }
 
-  function generateSchedule(groups, options) {
-    const sourceGroups = Array.isArray(groups) ? groups : [];
-    const priority = options?.priority || (options?.autoRatings ? "rating" : "manual");
-    const autoSelectInstructor = priority === "rating" || priority === "time";
-    const selections = options?.selections || null;
-    const preferences = normalizeSchedulerPreferences(options?.preferences);
-    const requestedMaxExplored = Number(options?.maxExplored);
-    const maxExplored = Number.isInteger(requestedMaxExplored) && requestedMaxExplored > 0
-      ? requestedMaxExplored
-      : 250000;
-    const courseCount = sourceGroups.length;
-    const qualityMaxPerCourse = 10100;
-    const qualityMaxTotal = courseCount * qualityMaxPerCourse;
-    const knownAvailableWeight = qualityMaxTotal + 1;
-    const openWeight = courseCount * knownAvailableWeight + qualityMaxTotal + 1;
-    const prepared = [];
+  function clamp01(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : NEUTRAL_QUALITY;
+  }
 
-    for (const group of sourceGroups) {
-      const requiredName = autoSelectInstructor
-        ? null
-        : selectedNameFor(selections, group.courseKey);
-      if (!autoSelectInstructor && !requiredName) {
-        return { ok: false, reason: "missing_instructor", courseKey: group.courseKey };
-      }
-      const candidates = [];
-      let blockedByTimePreferences = false;
-      for (const section of group.sections || []) {
-        if (section.availability === "unavailable" || section.existingScheduleConflict) {
-          continue;
-        }
-        const instructor = bestInstructor(section, requiredName);
-        if (!instructor) {
-          continue;
-        }
-        const timeScore = timePreferenceScore(section, preferences);
-        if (timeScore.hardBlocked) {
-          blockedByTimePreferences = true;
-          continue;
-        }
-        const rating = ratingValue(instructor);
-        const ratingQuality = rating >= 0 ? Math.min(1, Math.max(0, rating / 5)) : 0;
-        const ratingFirst = priority === "rating";
-        const qualityScore = Math.round(
-          (ratingFirst ? ratingQuality : timeScore.quality) * 10000 +
-          (ratingFirst ? timeScore.quality : ratingQuality) * 100,
-        );
-        const availabilityScore =
-          section.availability === "open"
-            ? openWeight
-            : section.availability === "waitlist"
-              ? knownAvailableWeight
-              : 0;
-        candidates.push({
-          ...section,
-          selectedInstructor: instructor,
-          selectedRating: rating >= 0 ? rating : null,
-          timePreferenceQuality: timeScore.quality,
-          _score: availabilityScore + qualityScore,
-        });
-      }
-      if (!candidates.length) {
-        return {
-          ok: false,
-          reason: "no_eligible_sections",
-          courseKey: group.courseKey,
-          instructor: requiredName,
-          blockedByTimePreferences,
-        };
-      }
-      candidates.sort(compareCandidate);
-      prepared.push({ courseKey: group.courseKey, candidates });
+  function positiveInteger(value, fallback) {
+    const number = Number(value);
+    return Number.isInteger(number) && number > 0 ? number : fallback;
+  }
+
+  function sectionLimits(section, includeWaitlist) {
+    const limits = [];
+    if (section.availability === "waitlist" && !includeWaitlist) {
+      limits.push("waitlist");
+    } else if (section.availability === "unavailable") {
+      limits.push("closed");
+    } else if (section.availability === "unknown") {
+      limits.push("unknownSeats");
     }
+    if (section.existingScheduleConflict) {
+      limits.push("existingConflict");
+    }
+    return limits;
+  }
 
-    prepared.sort((a, b) => a.candidates.length - b.candidates.length);
+  function summarizeOption(sections) {
+    const ordered = [...sections].sort((a, b) =>
+      String(a.courseKey).localeCompare(String(b.courseKey), undefined, { numeric: true }),
+    );
+    const overlaps = [];
+    const limits = new Set();
+    for (let first = 0; first < ordered.length; first += 1) {
+      for (const kind of ordered[first].limits) {
+        limits.add(kind);
+      }
+      for (let second = first + 1; second < ordered.length; second += 1) {
+        if (meetingsConflict(ordered[first].meetings, ordered[second].meetings)) {
+          overlaps.push([ordered[first].section, ordered[second].section]);
+          limits.add("overlap");
+        }
+      }
+    }
+    const rated = ordered.filter((section) => section.selectedRating != null);
+    return {
+      sections: ordered,
+      overlaps,
+      limits: [...limits],
+      timeMatch: ordered.reduce((sum, section) => sum + section.timeQuality, 0) / ordered.length,
+      averageRating: rated.length
+        ? rated.reduce((sum, section) => sum + section.selectedRating, 0) / rated.length
+        : null,
+      hasWaitlist: ordered.some((section) => section.availability === "waitlist"),
+      hasTbaMeetings: ordered.some((section) => section.meetings.some((meeting) => meeting.isTba)),
+    };
+  }
+
+  /**
+   * Branch and bound over one section per course, keeping the best `maxOptions`
+   * combinations. Overlapping classes are rejected outright on the first pass
+   * and merely penalized on the retry, so an impossible timetable still
+   * produces something to look at.
+   */
+  function searchCombinations(prepared, settings) {
+    const { allowOverlaps, overlapPenalty, maxOptions, maxExplored } = settings;
     const suffixMax = new Array(prepared.length + 1).fill(0);
     for (let index = prepared.length - 1; index >= 0; index -= 1) {
-      suffixMax[index] = suffixMax[index + 1] + prepared[index].candidates[0]._score;
+      suffixMax[index] = suffixMax[index + 1] + prepared[index][0]._score;
     }
 
+    const best = [];
     let explored = 0;
-    let bestScore = -1;
-    let best = null;
     let truncated = false;
-    let foundUpperBound = false;
 
     function visit(index, chosen, score) {
-      if (foundUpperBound || truncated) {
-        return;
-      }
-      if (explored >= maxExplored) {
-        truncated = true;
-        return;
-      }
-      if (best && score + suffixMax[index] <= bestScore) {
+      const worstKept = best.length === maxOptions ? best[best.length - 1].score : -Infinity;
+      if (truncated || score + suffixMax[index] <= worstKept) {
         return;
       }
       if (index >= prepared.length) {
-        explored += 1;
-        if (score > bestScore) {
-          bestScore = score;
-          best = [...chosen];
-          foundUpperBound = score === suffixMax[0];
+        const position = best.findIndex((entry) => entry.score < score);
+        best.splice(position < 0 ? best.length : position, 0, {
+          sections: [...chosen],
+          score,
+        });
+        if (best.length > maxOptions) {
+          best.pop();
         }
         return;
       }
-
-      for (const candidate of prepared[index].candidates) {
+      for (const candidate of prepared[index]) {
         explored += 1;
         if (explored >= maxExplored) {
           truncated = true;
           return;
         }
-        if (chosen.some((item) => meetingsConflict(item.meetings, candidate.meetings))) {
+        const overlaps = chosen.filter((item) =>
+          meetingsConflict(item.meetings, candidate.meetings),
+        ).length;
+        if (overlaps && !allowOverlaps) {
           continue;
         }
         chosen.push(candidate);
-        visit(index + 1, chosen, score + candidate._score);
+        visit(index + 1, chosen, score + candidate._score - overlaps * overlapPenalty);
         chosen.pop();
-        if (foundUpperBound || truncated) {
+        if (truncated) {
           return;
         }
       }
     }
 
     visit(0, [], 0);
-    if (!best) {
-      return { ok: false, reason: "no_conflict_free_schedule", explored, truncated };
+    return { best, truncated };
+  }
+
+  /**
+   * Ranks combinations of one section per course and returns the best few.
+   * Sections that cost you something (waitlist, closed, clashing with courses
+   * you already saved) sort below clean ones but are still returned, and each
+   * option reports the limits it ran into. `ratingWeight` blends the preference
+   * sliders with RateMyProfessors ratings (0 = times only, 1 = ratings only).
+   */
+  function generateSchedules(groups, options) {
+    const sourceGroups = Array.isArray(groups) ? groups : [];
+    const preferences = normalizeSchedulerPreferences(options?.preferences);
+    const ratingWeight = clamp01(options?.ratingWeight);
+    const includeWaitlist = options?.includeWaitlist === true;
+    const maxOptions = positiveInteger(options?.maxOptions, 8);
+    const maxExplored = positiveInteger(options?.maxExplored, 250000);
+    // One unit of compromise must outweigh every possible quality difference.
+    const compromiseWeight = sourceGroups.length * QUALITY_STEPS + 1;
+    const prepared = [];
+
+    for (const group of sourceGroups) {
+      const candidates = [];
+      // A kept section narrows its course to that one choice, unless it has
+      // gone stale since the search that produced it.
+      const keptKey = options?.pinned?.get(group.courseKey);
+      const sections = group.sections || [];
+      const kept = keptKey ? sections.filter((item) => sectionKey(item) === keptKey) : [];
+      for (const section of kept.length ? kept : sections) {
+        const instructor = bestRatedInstructor(section);
+        if (!instructor) {
+          continue;
+        }
+        const rating = ratingValue(instructor);
+        const timeQuality = preferenceQuality(section, preferences);
+        const ratingQuality = rating >= 0 ? rating / 5 : NEUTRAL_QUALITY;
+        const quality = timeQuality * (1 - ratingWeight) + ratingQuality * ratingWeight;
+        const limits = sectionLimits(section, includeWaitlist);
+        const cost = limits.reduce((sum, kind) => sum + LIMIT_COST[kind], 0);
+        candidates.push({
+          ...section,
+          selectedInstructor: instructor,
+          selectedRating: rating >= 0 ? rating : null,
+          timeQuality,
+          limits,
+          _score:
+            (MAX_SECTION_COST - cost) * compromiseWeight +
+            Math.round(quality * QUALITY_STEPS),
+        });
+      }
+      if (!candidates.length) {
+        return { ok: false, reason: "no_sections", courseKey: group.courseKey };
+      }
+      candidates.sort(compareCandidate);
+      prepared.push(candidates);
     }
-    const schedule = best.sort((a, b) =>
-      String(a.courseKey).localeCompare(String(b.courseKey), undefined, { numeric: true }),
-    );
+
+    // Courses with the fewest sections first, so the bound bites early.
+    prepared.sort((a, b) => a.length - b.length);
+    const settings = {
+      allowOverlaps: false,
+      overlapPenalty: LIMIT_COST.overlap * compromiseWeight,
+      maxOptions,
+      maxExplored,
+    };
+    let { best, truncated } = searchCombinations(prepared, settings);
+    if (!best.length && !truncated) {
+      ({ best, truncated } = searchCombinations(prepared, { ...settings, allowOverlaps: true }));
+    }
+    if (!best.length) {
+      return { ok: false, reason: "search_exhausted", truncated };
+    }
     return {
       ok: true,
-      schedule,
-      explored,
       truncated,
-      optimal: foundUpperBound && !truncated,
-      priority,
-      hasWaitlist: schedule.some((item) => item.availability === "waitlist"),
-      hasUnknownSeats: schedule.some((item) => item.availability === "unknown"),
-      hasTbaMeetings: schedule.some((item) => item.meetings.some((meeting) => meeting.isTba)),
+      options: best.map((entry) => summarizeOption(entry.sections)),
     };
   }
 
@@ -477,99 +498,27 @@
 
   function formatMeeting(meeting) {
     if (!meeting || meeting.isTba) {
-      return `${meeting?.type || "Meeting"}: TBA`;
+      return "TBA";
     }
-    return `${meeting.type}: ${meeting.days.join("")} ${formatClock(meeting.startMinutes)}-${formatClock(meeting.endMinutes)} @ ${meeting.location}`;
+    const days = meeting.days.join("");
+    const time = `${formatClock(meeting.startMinutes)}-${formatClock(meeting.endMinutes)}`;
+    return `${days} ${time} · ${meeting.location}`;
   }
 
-  function formatAvailability(section) {
-    if (section.availability === "unavailable") {
-      return "Unavailable (Open 0 / Waitlist 0)";
+  /** Seat status as a short badge label plus a tone shared with the RMP cards. */
+  function seatSummary(section) {
+    if (section.availability === "open") {
+      return {
+        label: String(section.openSeats ?? "?"),
+        tone: section.openSeats >= 5 ? "good" : "mid",
+      };
     }
     if (section.availability === "waitlist") {
-      return `Waitlist only (Open 0 / Waitlist ${section.waitlistCount})`;
+      return { label: `WL ${section.waitlistCount}`, tone: "mid" };
     }
-    if (section.availability === "open") {
-      return `Open ${section.openSeats} / Waitlist ${section.waitlistCount ?? "?"}`;
-    }
-    return "Seat status unknown";
-  }
-
-  function formatRmp(instructor) {
-    const rating = numberOrNull(instructor?.rmp?.rating);
-    if (rating == null) {
-      return "RMP: N/A";
-    }
-    const difficulty = numberOrNull(instructor.rmp.difficulty);
-    const wouldTake = numberOrNull(instructor.rmp.wouldTakeAgainPercent);
-    const reviews = numberOrNull(instructor.rmp.reviewCount);
-    return [
-      `RMP ${rating.toFixed(1)}/5`,
-      difficulty == null ? null : `difficulty ${difficulty.toFixed(1)}/5`,
-      wouldTake == null || wouldTake < 0 ? null : `${Math.round(wouldTake)}% would take again`,
-      reviews == null ? null : `${reviews} reviews`,
-    ].filter(Boolean).join(", ");
-  }
-
-  function formatSchedulerPreferences(rawPreferences) {
-    const preferences = normalizeSchedulerPreferences(rawPreferences);
-    const preferredDayLabels = preferences.preferredDays.map(
-      (day) => WEEKDAY_OPTIONS.find((option) => option.key === day)?.label || day,
-    );
-    const levels = { preferred: [], avoid: [], never: [] };
-    for (const block of TIME_BLOCKS) {
-      const level = preferences.timeBlocks[block.key];
-      if (levels[level]) {
-        levels[level].push(`${block.label} (${block.rangeLabel})`);
-      }
-    }
-    return [
-      `Preferred weekdays: ${preferredDayLabels.length ? preferredDayLabels.join(", ") : "No weekday preference"}.`,
-      `Preferred time blocks: ${levels.preferred.length ? levels.preferred.join(", ") : "None"}.`,
-      `Less-preferred time blocks: ${levels.avoid.length ? levels.avoid.join(", ") : "None"}.`,
-      `Never schedule in: ${levels.never.length ? levels.never.join(", ") : "None"}.`,
-    ];
-  }
-
-  function buildPrompt(groups, termName, rawPreferences) {
-    const lines = [
-      "Using the UC Davis course data below, design a schedule with no class-time conflicts.",
-      termName ? `Term: ${termName}` : null,
-      "Hard constraints: choose exactly one section for every course; never select a section with Open 0 and Waitlist 0; never select a section marked as conflicting with my current Schedule Builder schedule; treat every time block listed under Never schedule in as a hard exclusion; clearly flag any waitlist-only choice; explain any uncertainty caused by TBA meetings.",
-      "Optimization preferences: prioritize open sections, then professors with stronger RateMyProfessors ratings and more reliable review counts. Provide a preferred schedule and at least one feasible alternative when possible.",
-      ...formatSchedulerPreferences(rawPreferences),
-      "",
-    ].filter((line) => line != null);
-
-    for (const group of groups || []) {
-      lines.push(`## ${group.courseKey}${group.title ? ` — ${group.title}` : ""}`);
-      const instructors = new Map();
-      for (const section of group.sections || []) {
-        for (const instructor of section.instructors || []) {
-          if (!instructors.has(instructor.displayName)) {
-            instructors.set(instructor.displayName, instructor);
-          }
-        }
-      }
-      lines.push("Professors:");
-      for (const instructor of instructors.values()) {
-        lines.push(`- ${instructor.displayName} — ${formatRmp(instructor)}`);
-      }
-      lines.push("Sections:");
-      for (const section of group.sections || []) {
-        const meetings = section.meetings.length
-          ? section.meetings.map(formatMeeting).join("; ")
-          : "TBA";
-        const existingConflict = section.existingScheduleConflict
-          ? ` | CONFLICTS WITH CURRENT SCHEDULE${section.existingScheduleConflictText ? `: ${section.existingScheduleConflictText}` : ""}`
-          : "";
-        lines.push(
-          `- ${section.section || group.courseKey} | CRN ${section.crn || "N/A"} | ${formatAvailability(section)} | Professor ${section.instructors.map((item) => item.displayName).join(" / ")} | ${meetings}${section.finalExam ? ` | Final: ${section.finalExam}` : ""}${existingConflict}`,
-        );
-      }
-      lines.push("");
-    }
-    return lines.join("\n");
+    return section.availability === "unavailable"
+      ? { label: "Full", tone: "low" }
+      : { label: "?", tone: "neutral" };
   }
 
   return {
@@ -577,16 +526,14 @@
     parseCourseCodes,
     normalizeSearchResult,
     normalizeSchedulerPreferences,
-    timePreferenceScore,
     classifyAvailability,
     meetingsConflict,
-    generateSchedule,
+    generateSchedules,
+    sectionKey,
     formatMeeting,
-    formatAvailability,
-    formatRmp,
-    buildPrompt,
+    seatSummary,
     WEEKDAY_OPTIONS,
     TIME_BLOCKS,
-    TIME_PREFERENCE_LEVELS,
+    PREFERENCE_STOPS,
   };
 });

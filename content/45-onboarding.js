@@ -270,6 +270,12 @@
     );
     list.appendChild(itemRmp);
 
+    const itemPlanner = listItem();
+    itemPlanner.append(
+      "Advanced Planner finds conflict-free section combos for your courses",
+    );
+    list.appendChild(itemPlanner);
+
     const item4 = listItem();
     const settingsIcon = document.createElement("img");
     settingsIcon.src = chrome.runtime.getURL("128.png");
@@ -295,7 +301,7 @@
     builtByLink.href = builtByHref;
     builtByLink.target = "_blank";
     builtByLink.rel = "noopener noreferrer";
-    builtByLink.textContent = "Built by Vijit Dua";
+    builtByLink.textContent = "By Vijit Dua";
     builtByLink.style.color = "#51627d";
     builtByLink.style.textDecoration = "none";
     builtByLink.addEventListener("mouseenter", () => {

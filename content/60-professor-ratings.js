@@ -85,36 +85,20 @@
     };
   }
 
+  /** Search results give "Last, First" or "First Last" instead of the page's "F. Last". */
   function parseProfessorNameForLookup(text) {
-    const parsedLabel = parseInstructorLabel(text);
-    if (parsedLabel) {
-      return parsedLabel;
-    }
     const displayName = (text || "").trim();
-    if (
-      !displayName ||
-      /(^|\s)staff(\s|$)/i.test(displayName) ||
-      /(^|\s)tba(\s|$)/i.test(displayName)
-    ) {
-      return null;
+    const fromLabel = parseInstructorLabel(displayName);
+    if (fromLabel || !displayName || /(^|\s)(staff|tba)(\s|$)/i.test(displayName)) {
+      return fromLabel;
     }
-    const commaParts = displayName.split(",").map((part) => part.trim()).filter(Boolean);
-    if (commaParts.length === 2) {
-      return {
-        displayName,
-        firstInitial: commaParts[1].slice(0, 1),
-        lastName: commaParts[0],
-      };
-    }
-    const parts = displayName.split(/\s+/).filter(Boolean);
-    if (parts.length < 2) {
-      return null;
-    }
-    return {
-      displayName,
-      firstInitial: parts[0].slice(0, 1),
-      lastName: parts.slice(1).join(" "),
-    };
+    const words = displayName.split(/\s+/);
+    const [lastName, firstName] = displayName.includes(",")
+      ? displayName.split(",").map((part) => part.trim())
+      : [words.slice(1).join(" "), words[0]];
+    return lastName && firstName
+      ? { displayName, firstInitial: firstName.slice(0, 1), lastName }
+      : null;
   }
 
   function ensureStyles() {

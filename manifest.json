@@ -46,7 +46,6 @@
         "branding/official.js",
         "shared/config-schema.js",
         "shared/extension-context.js",
-        "shared/clipboard.js",
         "shared/scheduler-core.js",
         "content/00-namespace.js",
         "content/05-config.js",
@@ -60,7 +59,8 @@
         "content/55-calendar-export.js",
         "content/ui/styles.js",
         "content/60-professor-ratings.js",
-        "content/65-auto-scheduler.js",
+        "content/ui/planner-styles.js",
+        "content/65-advanced-planner.js",
         "content/40-overlay-ui.js",
         "content/45-onboarding.js",
         "content/50-bootstrap.js"

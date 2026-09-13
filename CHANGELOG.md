@@ -8,27 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Smart schedule planner for multiple validated courses that searches every section and loads live Open/Waitlist status.
-- Per-course professor picker with cached RateMyProfessors rating, difficulty, review count, and would-take-again data.
-- Conflict-free schedule solver for manually selected professors and an Open-seat-first, RMP-rating-optimized mode; sections that conflict with the current Schedule Builder schedule are hard-excluded and rechecked before every generated plan.
-- Strong Waitlist-only/TBA warnings, automatic exclusion of `Open 0 / Waitlist 0` sections, and one-click saving of a generated plan to the current schedule.
-- One-click GPT prompt export containing all sections, meeting times, seat status, professors, and RMP data.
-- Unit tests for course-code parsing, seat classification, conflict detection, optimization, and prompt generation.
-- Popup and developer-menu toggles to show or hide Smart Schedule Planner immediately.
-- Planner Advanced Settings for preferred weekdays and Preferred, Neutral, Less preferred, or Never time blocks.
-- Time Priority and Rating Priority automatic planning modes; each uses the other dimension as a lower-weight tie-breaker while keeping seat and conflict rules as hard constraints.
-- Smart Planner launch buttons beside Export Calendar in the extension popup and beside Schedule Builder's native course search.
-- Modal Smart Planner UI matching the extension's developer, calendar-export, and onboarding presentation.
-- Schedule Builder-backed course autocomplete with removable chips; unrecognized courses cannot be added.
+- **Advanced Planner**: type the courses you want, slide your preferred times and days, and the planner ranks every conflict-free combination of sections (live seats + professor ratings) so you can pick one and save it to Schedule Builder. When no clean schedule exists, it still shows the closest options and says exactly what had to give.
+- Planner launchers in the popup and next to Schedule Builder's course search, plus a visibility toggle.
+- Unit tests for course parsing, seat classification, conflict detection, the solver, and the MAIN-world bridge.
 
 ### Changed
 
 - Manifest version **3.1.0**.
 
 ### Fixed
-
-- Live-seat lookup now falls back to the URL or hidden term field when Schedule Builder's global term value is unavailable.
-- Scheduler exploration limits now reject zero, negative, fractional, and non-finite overrides.
 - RMP ratings now appear in the **Add / Search Courses** modal (`[role='dialog']`), not only inline search results.
 - RMP watches `document.body` so ratings inject when the search modal opens dynamically.
 - Developer menu: **Clear all caches** near the top (registrar calendar + RMP).
