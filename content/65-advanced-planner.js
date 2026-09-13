@@ -1520,11 +1520,12 @@
     return root;
   }
 
-  function openModal() {
-    if (ASS.state.settings.showAdvancedPlanner === false) {
+  function openModal(options = {}) {
+    if (!options.force && ASS.state.settings.showAdvancedPlanner === false) {
       return false;
     }
     api.closeSettingsPanel?.();
+    api.closeDeveloperPanel?.();
     if (!root || !document.contains(root)) {
       root = null;
       document.body.appendChild(createUi());
@@ -1617,7 +1618,7 @@
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "ASS_OPEN_ADVANCED_PLANNER") {
-      sendResponse({ ok: openModal() });
+      sendResponse({ ok: openModal({ force: !!message.force }) });
     }
     return false;
   });

@@ -49,6 +49,8 @@ flowchart TB
 | `content/30-registration.js` | Register button discovery and click waves |
 | `content/40-overlay-ui.js` | Floating UI and settings panel |
 | `content/45-onboarding.js` | First-run modal (`assOnboardingDismissed` in local storage) |
+| `content/ui/whats-new-entries.js` | Newest-first What’s New release notes |
+| `content/48-soft-prompts.js` | What’s New + post-success feedback prompts |
 | `content/50-bootstrap.js` | Entry point, render loop, storage listeners |
 | `content/65-advanced-planner.js` | Advanced Planner wizard: course chips, preference steps, section-by-section selection |
 | `content/ui/planner-styles.js` | Advanced Planner stylesheet |
@@ -98,7 +100,9 @@ cached in `assAdvancedPlannerCourses` / `assAdvancedPlannerPreferences`
 
 - `node --test tests/*.test.js` — covers the scheduler solver and the MAIN-world bridge.
 - `?ucdTest=N` or `#ucdTest=N` — simulates a pass opening in N seconds (see `content/00-namespace.js`).
-- `?assReset=1` or `#assReset=1` — clears onboarding dismissal and shows the welcome modal again.
+- `?assReset=1` / `onboarding` / `all` — clears onboarding (and related soft-prompt state for `1`/`all`) and can show the welcome modal again.
+- `?assReset=whatsnew` — clears What’s New seen state so the update sheet can show again.
+- `?assReset=feedback` — clears feedback settled/snooze so the post-success ask can show again.
 - Debug logs: popup footer **Copy debug logs** (requires Schedule Builder tab active).
 
 ## Frames

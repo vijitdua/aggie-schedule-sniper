@@ -4,7 +4,7 @@
 (function (root) {
   const DEFAULT_CONFIG = {
     embeddedPanelWidthPx: 340,
-    embeddedPanelHeightPx: 420,
+    embeddedPanelHeightPx: 450,
     renderIntervalMs: 500,
     passActiveWindowMs: 4 * 60 * 60 * 1000,
     passCacheTtlMs: 8000,

@@ -13,19 +13,33 @@
     return sec != null ? Date.now() + sec * 1000 : null;
   }
 
-  /** Dev helper: ?assReset=1 or #assReset=1 clears first-run onboarding. */
-  function shouldResetOnboardingFromUrl() {
+  /** Dev helper: ?assReset=1|onboarding|whatsnew|feedback|all */
+  function getAssResetTokenFromUrl() {
     const queryValue = new URLSearchParams(location.search).get("assReset");
     const hashValue = location.hash.match(/assReset=([^&]+)/i)?.[1];
-    const token = (queryValue || hashValue || "").toLowerCase();
+    return (queryValue || hashValue || "").toLowerCase();
+  }
+
+  function shouldResetOnboardingFromUrl() {
+    const token = getAssResetTokenFromUrl();
     return token === "1" || token === "onboarding" || token === "all";
+  }
+
+  function shouldResetWhatsNewFromUrl() {
+    const token = getAssResetTokenFromUrl();
+    return token === "1" || token === "whatsnew" || token === "all";
+  }
+
+  function shouldResetFeedbackFromUrl() {
+    const token = getAssResetTokenFromUrl();
+    return token === "1" || token === "feedback" || token === "all";
   }
 
   window.ASS = {
     branding,
     config: {
       embeddedPanelWidthPx: 340,
-      embeddedPanelHeightPx: 420,
+      embeddedPanelHeightPx: 450,
       renderIntervalMs: 500,
       passActiveWindowMs: 4 * 60 * 60 * 1000,
       passCacheTtlMs: 8000,
@@ -57,6 +71,7 @@
         keepScreenAwake: true,
         showProfessorRatings: true,
         showAdvancedPlanner: true,
+        showCalendarExport: true,
       },
       selectedPassId: null,
       cachedRegisterButton: null,
@@ -82,6 +97,7 @@
       devBackdrop: null,
       backdrop: null,
       onboardingRoot: null,
+      softPromptRoot: null,
     },
     debug: {
       maxRing: 1024,
@@ -98,7 +114,10 @@
 
   window.ASS.api.getUcdTestDelaySecondsFromUrl = getUcdTestDelaySecondsFromUrl;
   window.ASS.api.getSimulatedPassTimeMsFromUrl = getSimulatedPassTimeMsFromUrl;
+  window.ASS.api.getAssResetTokenFromUrl = getAssResetTokenFromUrl;
   window.ASS.api.shouldResetOnboardingFromUrl = shouldResetOnboardingFromUrl;
+  window.ASS.api.shouldResetWhatsNewFromUrl = shouldResetWhatsNewFromUrl;
+  window.ASS.api.shouldResetFeedbackFromUrl = shouldResetFeedbackFromUrl;
   window.ASS.api.wait = (ms) =>
     new Promise((resolve) => setTimeout(resolve, ms));
 })();

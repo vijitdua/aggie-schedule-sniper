@@ -53,6 +53,7 @@
       keepScreenAwake: state.settings.keepScreenAwake,
       showProfessorRatings: state.settings.showProfessorRatings,
       showAdvancedPlanner: state.settings.showAdvancedPlanner,
+      showCalendarExport: state.settings.showCalendarExport,
       browserTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
   }
@@ -65,6 +66,7 @@
       keepScreenAwake: true,
       showProfessorRatings: true,
       showAdvancedPlanner: true,
+      showCalendarExport: true,
     };
 
     chrome.storage.sync.get(defaultSettings, (storedValues) => {
@@ -77,6 +79,7 @@
         state.settings.keepScreenAwake = true;
         state.settings.showProfessorRatings = true;
         state.settings.showAdvancedPlanner = true;
+        state.settings.showCalendarExport = true;
 
         chrome.storage.sync.set(
           {
@@ -101,6 +104,8 @@
         storedValues.showProfessorRatings !== false;
       state.settings.showAdvancedPlanner =
         storedValues.showAdvancedPlanner !== false;
+      state.settings.showCalendarExport =
+        storedValues.showCalendarExport !== false;
       onReady();
     });
   }
@@ -115,7 +120,11 @@
     const activePass = api.getCurrentlyActivePass(passTimes);
     api.initializePassTrackingState(passTimes);
     void api.maybeAttemptAutoRegistration(activePass);
-    api.injectScheduleBuilderExportButton?.();
+    if (state.settings.showCalendarExport) {
+      api.injectScheduleBuilderExportButton?.();
+    } else {
+      api.removeScheduleBuilderExportButton?.();
+    }
     if (state.settings.showAdvancedPlanner) {
       api.ensureAdvancedPlannerUi?.();
     } else {
@@ -137,6 +146,7 @@
     if (window.self !== window.top) {
       return;
     }
+    api.closeDeveloperPanel?.();
     api.showOnboardingModal?.();
   }
 
@@ -148,12 +158,26 @@
       handleShowOnboardingRequest();
       return;
     }
+    if (event.data?.type === "ASS_SHOW_WHATS_NEW") {
+      if (window.self === window.top) {
+        void api.forceShowWhatsNew?.();
+      }
+      return;
+    }
+    if (event.data?.type === "ASS_SHOW_FEEDBACK") {
+      if (window.self === window.top) {
+        api.forceShowFeedbackPrompt?.();
+      }
+      return;
+    }
     if (event.data?.type === "ASS_OPEN_DEV_MENU") {
       api.openDeveloperPanel?.();
       return;
     }
     if (event.data?.type === "ASS_OPEN_ADVANCED_PLANNER") {
-      api.openAdvancedPlannerModal?.();
+      api.openAdvancedPlannerModal?.({
+        force: event.data?.force !== false,
+      });
       return;
     }
     if (event.data?.type === "ASS_CLOSE_DEV_MENU") {
@@ -208,7 +232,8 @@
         Object.prototype.hasOwnProperty.call(changes, "keepSessionAlive") ||
         Object.prototype.hasOwnProperty.call(changes, "keepScreenAwake") ||
         Object.prototype.hasOwnProperty.call(changes, "showProfessorRatings") ||
-        Object.prototype.hasOwnProperty.call(changes, "showAdvancedPlanner");
+        Object.prototype.hasOwnProperty.call(changes, "showAdvancedPlanner") ||
+        Object.prototype.hasOwnProperty.call(changes, "showCalendarExport");
 
       if (changes.autoRegister) {
         state.settings.autoRegister = !!changes.autoRegister.newValue;
@@ -236,6 +261,11 @@
           changes.showAdvancedPlanner.newValue !== false;
       }
 
+      if (changes.showCalendarExport) {
+        state.settings.showCalendarExport =
+          changes.showCalendarExport.newValue !== false;
+      }
+
       if (touched) {
         snipeLog("[settings_changed]", {
           autoRegister: state.settings.autoRegister,
@@ -244,6 +274,7 @@
           keepScreenAwake: state.settings.keepScreenAwake,
           showProfessorRatings: state.settings.showProfessorRatings,
           showAdvancedPlanner: state.settings.showAdvancedPlanner,
+          showCalendarExport: state.settings.showCalendarExport,
           fromStorage: {
             autoRegister: changes.autoRegister,
             showCountdown: changes.showCountdown,
@@ -251,6 +282,7 @@
             keepScreenAwake: changes.keepScreenAwake,
             showProfessorRatings: changes.showProfessorRatings,
             showAdvancedPlanner: changes.showAdvancedPlanner,
+            showCalendarExport: changes.showCalendarExport,
           },
         });
       }

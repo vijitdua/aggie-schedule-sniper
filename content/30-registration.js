@@ -357,6 +357,11 @@
       clickState.message = didSucceed
         ? "Registered Successfully"
         : "Unable to Register";
+      if (didSucceed) {
+        window.setTimeout(() => {
+          api.maybeShowFeedbackPrompt?.({ reason: "register" });
+        }, 900);
+      }
     } catch (error) {
       assConsoleError(
         "[Aggie Schedule Sniper] registration attempt failed",

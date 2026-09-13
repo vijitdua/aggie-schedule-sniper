@@ -1,11 +1,16 @@
 const branding = window.ASS_BRANDING || {};
 const SHARE_URL = branding.shareUrl || "https://ass.vijit.app";
+const SHARE_MESSAGE =
+  branding.shareMessage ||
+  `I used Aggie Schedule Sniper for registration — ${SHARE_URL}`;
+const SUPPORT_URL = branding.supportUrl || "https://vijitdua.com/support/ass";
 const ADVANCED_STORAGE_KEY = "assAdvancedConfig";
 
 const sniperToggle = document.getElementById("sniperToggle");
 const countdownToggle = document.getElementById("countToggle");
 const waitingHelpersToggle = document.getElementById("waitingHelpersToggle");
 const professorRatingsToggle = document.getElementById("professorRatingsToggle");
+const calendarExportToggle = document.getElementById("calendarExportToggle");
 const advancedPlannerToggle = document.getElementById("advancedPlannerToggle");
 const exportCalendarBtn = document.getElementById("exportCalendarBtn");
 const advancedPlannerBtn = document.getElementById("advancedPlannerBtn");
@@ -26,7 +31,12 @@ const devAutoRegisterToggle = document.getElementById("devAutoRegisterToggle");
 const devShowCountdownToggle = document.getElementById("devShowCountdownToggle");
 const devKeepLoggedInToggle = document.getElementById("devKeepLoggedInToggle");
 const devProfessorRatingsToggle = document.getElementById("devProfessorRatingsToggle");
+const devCalendarExportToggle = document.getElementById("devCalendarExportToggle");
 const devAdvancedPlannerToggle = document.getElementById("devAdvancedPlannerToggle");
+const feedbackLink = document.getElementById("feedbackLink");
+if (feedbackLink && SUPPORT_URL) {
+  feedbackLink.href = SUPPORT_URL;
+}
 const isEmbedded = new URLSearchParams(location.search).get("embedded") === "1";
 const isDeveloperPage =
   new URLSearchParams(location.search).get("developer") === "1";
@@ -37,6 +47,7 @@ const DEFAULT_SETTINGS = {
   keepSessionAlive: true,
   keepScreenAwake: true,
   showProfessorRatings: true,
+  showCalendarExport: true,
   showAdvancedPlanner: true,
 };
 
@@ -118,6 +129,19 @@ function initializeDeveloperPage() {
   resetAdvancedBtn?.addEventListener("click", resetAdvancedOverrides);
   resetAdvancedTopBtn?.addEventListener("click", resetAdvancedOverrides);
   clearAllCachesBtn?.addEventListener("click", clearAllCaches);
+
+  document.getElementById("devShowWhatsNewBtn")?.addEventListener("click", () => {
+    void previewOnScheduleBuilder("ASS_SHOW_WHATS_NEW", "Could not show What’s New");
+  });
+  document.getElementById("devShowFeedbackBtn")?.addEventListener("click", () => {
+    void previewOnScheduleBuilder("ASS_SHOW_FEEDBACK", "Could not show feedback");
+  });
+  document.getElementById("devShowOnboardingBtn")?.addEventListener("click", () => {
+    void showOnboarding();
+  });
+  document.getElementById("devOpenPlannerBtn")?.addEventListener("click", () => {
+    void openAdvancedPlannerFromPopup();
+  });
 }
 
 function resetAdvancedOverrides() {
@@ -205,6 +229,7 @@ function initializeDevUserToggles() {
     !devShowCountdownToggle ||
     !devKeepLoggedInToggle ||
     !devProfessorRatingsToggle ||
+    !devCalendarExportToggle ||
     !devAdvancedPlannerToggle
   ) {
     return;
@@ -215,6 +240,7 @@ function initializeDevUserToggles() {
     devShowCountdownToggle.checked = !!saved.showCountdown;
     devKeepLoggedInToggle.checked = isWaitingHelpersEnabled(saved);
     devProfessorRatingsToggle.checked = saved.showProfessorRatings !== false;
+    devCalendarExportToggle.checked = saved.showCalendarExport !== false;
     devAdvancedPlannerToggle.checked = saved.showAdvancedPlanner !== false;
   };
 
@@ -238,6 +264,12 @@ function initializeDevUserToggles() {
     });
   });
 
+  devCalendarExportToggle.addEventListener("change", () => {
+    chrome.storage.sync.set({
+      showCalendarExport: devCalendarExportToggle.checked,
+    });
+  });
+
   devAdvancedPlannerToggle.addEventListener("change", () => {
     chrome.storage.sync.set({
       showAdvancedPlanner: devAdvancedPlannerToggle.checked,
@@ -248,7 +280,32 @@ function initializeDevUserToggles() {
     if (areaName !== "sync") {
       return;
     }
-    chrome.storage.sync.get(DEFAULT_SETTINGS, applySyncSettings);
+    if (Object.prototype.hasOwnProperty.call(changes, "autoRegister")) {
+      devAutoRegisterToggle.checked = !!changes.autoRegister.newValue;
+    }
+    if (Object.prototype.hasOwnProperty.call(changes, "showCountdown")) {
+      devShowCountdownToggle.checked = !!changes.showCountdown.newValue;
+    }
+    if (
+      Object.prototype.hasOwnProperty.call(changes, "keepSessionAlive") ||
+      Object.prototype.hasOwnProperty.call(changes, "keepScreenAwake")
+    ) {
+      chrome.storage.sync.get(DEFAULT_SETTINGS, (saved) => {
+        devKeepLoggedInToggle.checked = isWaitingHelpersEnabled(saved);
+      });
+    }
+    if (Object.prototype.hasOwnProperty.call(changes, "showProfessorRatings")) {
+      devProfessorRatingsToggle.checked =
+        changes.showProfessorRatings.newValue !== false;
+    }
+    if (Object.prototype.hasOwnProperty.call(changes, "showCalendarExport")) {
+      devCalendarExportToggle.checked =
+        changes.showCalendarExport.newValue !== false;
+    }
+    if (Object.prototype.hasOwnProperty.call(changes, "showAdvancedPlanner")) {
+      devAdvancedPlannerToggle.checked =
+        changes.showAdvancedPlanner.newValue !== false;
+    }
   });
 }
 
@@ -418,16 +475,6 @@ function setWaitingHelpers(enabled) {
 }
 
 function initializePopup() {
-  const applyAdvancedPlannerAvailability = (enabled) => {
-    if (!advancedPlannerBtn) {
-      return;
-    }
-    advancedPlannerBtn.disabled = !enabled;
-    advancedPlannerBtn.title = enabled
-      ? "Open Advanced Planner"
-      : "Enable Advanced Planner above to open it";
-  };
-
   chrome.storage.sync.get(DEFAULT_SETTINGS, (saved) => {
     sniperToggle.checked = !!saved.autoRegister;
     countdownToggle.checked = !!saved.showCountdown;
@@ -435,10 +482,12 @@ function initializePopup() {
     if (professorRatingsToggle) {
       professorRatingsToggle.checked = saved.showProfessorRatings !== false;
     }
+    if (calendarExportToggle) {
+      calendarExportToggle.checked = saved.showCalendarExport !== false;
+    }
     if (advancedPlannerToggle) {
       advancedPlannerToggle.checked = saved.showAdvancedPlanner !== false;
     }
-    applyAdvancedPlannerAvailability(saved.showAdvancedPlanner !== false);
     updateModeBadge();
   });
 
@@ -464,11 +513,16 @@ function initializePopup() {
     updateModeBadge();
   });
 
+  calendarExportToggle?.addEventListener("change", () => {
+    chrome.storage.sync.set({
+      showCalendarExport: calendarExportToggle.checked,
+    });
+  });
+
   advancedPlannerToggle?.addEventListener("change", () => {
     chrome.storage.sync.set({
       showAdvancedPlanner: advancedPlannerToggle.checked,
     });
-    applyAdvancedPlannerAvailability(advancedPlannerToggle.checked);
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -478,9 +532,11 @@ function initializePopup() {
     if (changes.showProfessorRatings && professorRatingsToggle) {
       professorRatingsToggle.checked = changes.showProfessorRatings.newValue !== false;
     }
+    if (changes.showCalendarExport && calendarExportToggle) {
+      calendarExportToggle.checked = changes.showCalendarExport.newValue !== false;
+    }
     if (changes.showAdvancedPlanner && advancedPlannerToggle) {
       advancedPlannerToggle.checked = changes.showAdvancedPlanner.newValue !== false;
-      applyAdvancedPlannerAvailability(changes.showAdvancedPlanner.newValue !== false);
     }
   });
 
@@ -505,9 +561,39 @@ function initializePopup() {
   });
 }
 
+async function previewOnScheduleBuilder(messageType, errorLabel) {
+  if (isEmbedded && window.parent !== window) {
+    window.parent.postMessage({ type: messageType }, "*");
+    return;
+  }
+
+  try {
+    const tabs = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    const tab = tabs[0];
+    if (!tab?.id) {
+      showSnackbar("No active tab", "error");
+      return;
+    }
+    const res = await chrome.tabs.sendMessage(tab.id, { type: messageType });
+    if (!res?.ok) {
+      showSnackbar("Open Schedule Builder on this tab, then try again", "error");
+      return;
+    }
+    window.close();
+  } catch {
+    showSnackbar(errorLabel || "Open Schedule Builder on this tab first", "error");
+  }
+}
+
 async function openAdvancedPlannerFromPopup() {
   if (isEmbedded && window.parent !== window) {
-    window.parent.postMessage({ type: "ASS_OPEN_ADVANCED_PLANNER" }, "*");
+    window.parent.postMessage(
+      { type: "ASS_OPEN_ADVANCED_PLANNER", force: true },
+      "*",
+    );
     return;
   }
 
@@ -520,6 +606,7 @@ async function openAdvancedPlannerFromPopup() {
     }
     const response = await chrome.tabs.sendMessage(tab.id, {
       type: "ASS_OPEN_ADVANCED_PLANNER",
+      force: true,
     });
     if (!response?.ok) {
       showSnackbar("Open Schedule Builder on this tab first", "error");
@@ -559,7 +646,7 @@ async function showOnboarding() {
 }
 
 async function shareLink() {
-  const copied = await copyStringToClipboard(SHARE_URL);
+  const copied = await copyStringToClipboard(SHARE_MESSAGE);
   if (copied) {
     showSnackbar("Copied to your clipboard", "success");
   } else {

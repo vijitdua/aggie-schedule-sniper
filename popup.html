@@ -75,24 +75,33 @@
       </section>
 
       <section class="setting-row">
+        <label class="switch" aria-label="Toggle calendar export on Schedule Builder">
+          <input type="checkbox" id="calendarExportToggle" />
+          <span class="slider"></span>
+        </label>
+        <span class="label-wrap" tabindex="0" aria-describedby="calendarExportTip">
+          <span class="label">Calendar Export</span>
+          <span class="setting-tooltip" id="calendarExportTip" role="tooltip">Shows the Export Calendar button on Schedule Builder. The button in this popup always stays available.</span>
+        </span>
+      </section>
+
+      <section class="setting-row">
         <label class="switch" aria-label="Toggle Advanced Planner">
           <input type="checkbox" id="advancedPlannerToggle" />
           <span class="slider"></span>
         </label>
         <span class="label-wrap" tabindex="0" aria-describedby="advancedPlannerTip">
           <span class="label">Advanced Planner</span>
-          <span class="setting-tooltip" id="advancedPlannerTip" role="tooltip">Find the perfect schedule for you based on your preferences across all combinations of courses — pick sections one at a time, then save.</span>
+          <span class="setting-tooltip" id="advancedPlannerTip" role="tooltip">Shows the Advanced Planner button on Schedule Builder. The button in this popup always stays available.</span>
         </span>
       </section>
     </div>
 
     <section class="export-section">
       <button type="button" class="export-calendar-btn" id="exportCalendarBtn">
-        <img src="128.png" alt="" width="18" height="18" class="export-calendar-btn__icon" />
         Export Calendar
       </button>
       <button type="button" class="export-calendar-btn" id="advancedPlannerBtn">
-        <img src="128.png" alt="" width="18" height="18" class="export-calendar-btn__icon" />
         Advanced Planner
       </button>
     </section>
@@ -140,6 +149,9 @@
         <span class="footer-meta__sep" aria-hidden="true">·</span>
         <a class="footer-meta__link" href="https://vijitdua.com/support/ass" target="_blank"
           rel="noopener noreferrer">Help / Support</a>
+        <span class="footer-meta__sep" aria-hidden="true">·</span>
+        <a class="footer-meta__link" id="feedbackLink" href="https://vijitdua.com/support/ass" target="_blank"
+          rel="noopener noreferrer">Feedback</a>
       </p>
       <p class="footer-meta footer-meta--secondary">
         <a class="footer-meta__link" href="https://github.com/vijitdua/aggie-schedule-sniper" target="_blank"
@@ -187,6 +199,20 @@
     <section class="dev-cache-bar">
       <button type="button" id="clearAllCachesBtn" class="dev-cache-bar__btn">Clear all caches</button>
       <span class="dev-cache-bar__hint">Registrar calendar and RateMyProfessors lookups</span>
+    </section>
+
+    <section class="dev-preview-bar" id="devPreviewBar">
+      <div class="dev-group-header">
+        <h2 class="dev-group-title">Preview prompts &amp; planner</h2>
+        <p class="dev-group-desc">Force-show UI on the open Schedule Builder tab. Closes this menu so you can see the card.</p>
+      </div>
+      <div class="dev-preview-actions">
+        <button type="button" id="devShowWhatsNewBtn" class="dev-preview-btn">Show What’s New</button>
+        <button type="button" id="devShowFeedbackBtn" class="dev-preview-btn">Show feedback</button>
+        <button type="button" id="devShowOnboardingBtn" class="dev-preview-btn">Show onboarding</button>
+        <button type="button" id="devOpenPlannerBtn" class="dev-preview-btn">Open Advanced Planner</button>
+      </div>
+      <p class="dev-preview-hint">Schedule Builder must be the active tab (or this menu opened from it).</p>
     </section>
 
     <section class="dev-user-settings" id="devUserSettings">
@@ -237,12 +263,22 @@
         </label>
         <label class="dev-toggle-row">
           <span class="switch">
+            <input type="checkbox" id="devCalendarExportToggle" />
+            <span class="slider"></span>
+          </span>
+          <span class="dev-toggle-label-wrap" tabindex="0" aria-describedby="devCalendarExportTip">
+            <span class="dev-toggle-label">Calendar export button</span>
+            <span class="setting-tooltip dev-field-tooltip" id="devCalendarExportTip" role="tooltip">Shows the Export Calendar button on Schedule Builder. Popup button always stays available.</span>
+          </span>
+        </label>
+        <label class="dev-toggle-row">
+          <span class="switch">
             <input type="checkbox" id="devAdvancedPlannerToggle" />
             <span class="slider"></span>
           </span>
           <span class="dev-toggle-label-wrap" tabindex="0" aria-describedby="devAdvancedPlannerTip">
             <span class="dev-toggle-label">Advanced Planner</span>
-            <span class="setting-tooltip dev-field-tooltip" id="devAdvancedPlannerTip" role="tooltip">Find the perfect schedule for you based on your preferences across all combinations of courses.</span>
+            <span class="setting-tooltip dev-field-tooltip" id="devAdvancedPlannerTip" role="tooltip">Shows the Advanced Planner button on Schedule Builder. Popup button always stays available.</span>
           </span>
         </label>
       </div>

@@ -76,6 +76,69 @@
     return "Quarter dates unavailable";
   }
 
+  function buildExportDateSubtitle(bounds) {
+    const wrap = api.createStyledElement(
+      "div",
+      `margin:0;font-size:11px;line-height:1.45;color:${MUTED};`,
+    );
+    wrap.appendChild(
+      api.createStyledElement(
+        "p",
+        `margin:0;font-size:11px;color:${MUTED};`,
+        formatDateRange(bounds),
+      ),
+    );
+
+    if (bounds?.source === "manual") {
+      wrap.appendChild(
+        api.createStyledElement(
+          "p",
+          `margin:2px 0 0;font-size:10px;color:${MUTED};`,
+          "Entered manually",
+        ),
+      );
+      return wrap;
+    }
+
+    const registrarUrl =
+      window.ASS?.config?.registrarCalendarUrl ||
+      "https://registrar.ucdavis.edu/calendar/quarter";
+    const shareUrl =
+      window.ASS?.branding?.shareUrl || "https://ass.vijit.app";
+
+    const pulled = api.createStyledElement(
+      "p",
+      `margin:2px 0 0;font-size:10px;line-height:1.4;color:${MUTED};`,
+    );
+    pulled.append("Quarter dates automatically pulled from the ");
+    const registrarLink = document.createElement("a");
+    registrarLink.href = registrarUrl;
+    registrarLink.target = "_blank";
+    registrarLink.rel = "noopener noreferrer";
+    registrarLink.textContent = "UC Davis registrar calendar";
+    registrarLink.style.cssText = `color:${MUTED};text-decoration:underline;`;
+    pulled.appendChild(registrarLink);
+    pulled.append(", to save you the hassle.");
+    wrap.appendChild(pulled);
+
+    const via = api.createStyledElement(
+      "p",
+      `margin:2px 0 0;font-size:10px;line-height:1.4;color:${MUTED};`,
+    );
+    via.append("via ");
+    const viaLink = document.createElement("a");
+    viaLink.href = shareUrl;
+    viaLink.target = "_blank";
+    viaLink.rel = "noopener noreferrer";
+    viaLink.textContent = "ass.vijit.app";
+    viaLink.style.cssText = `color:${MUTED};text-decoration:underline;`;
+    via.appendChild(viaLink);
+    via.append(" as always");
+    wrap.appendChild(via);
+
+    return wrap;
+  }
+
   function termYearFromName(termName) {
     return (termName || "").match(/\b(20\d{2})\b/)?.[1] || null;
   }
@@ -586,7 +649,7 @@
 
         const backdrop = api.createStyledElement(
           "div",
-          "position:fixed;inset:0;background:rgba(1,37,110,.28);z-index:2147483647;",
+          "position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2147483647;",
         );
 
         const panel = api.createStyledElement(
@@ -702,7 +765,7 @@
 
     const backdrop = api.createStyledElement(
       "div",
-      "position:fixed;inset:0;background:rgba(1,37,110,.28);z-index:2147483647;",
+      "position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2147483647;",
     );
 
     const panel = api.createStyledElement(
@@ -734,11 +797,7 @@
         `margin:0 0 2px;font-size:16px;line-height:1.2;color:${UCD_BLUE};`,
         `Calendar • ${schedule.termName || "Term"}`,
       ),
-      api.createStyledElement(
-        "p",
-        `margin:0;font-size:11px;color:${MUTED};`,
-        formatDateRange(bounds),
-      ),
+      buildExportDateSubtitle(bounds),
     );
     panel.appendChild(header);
 
@@ -764,6 +823,7 @@
     );
 
     let exportFinished = false;
+    let exportSucceeded = false;
     const finishExport = (result) => {
       if (exportFinished) {
         return;
@@ -777,6 +837,11 @@
         finishExport({ ok: false, error: "Export cancelled." });
       }
       closeExportModal();
+      if (exportSucceeded) {
+        window.setTimeout(() => {
+          api.maybeShowFeedbackPrompt?.({ reason: "calendar_export" });
+        }, 400);
+      }
     };
 
     backdrop.addEventListener("click", dismissExportModal);
@@ -811,6 +876,7 @@
     googleBtn.disabled = !schedule.courses.length;
 
     const completeExport = (mode) => {
+      exportSucceeded = true;
       finishExport({ ok: true, mode, courseCount: schedule.courses.length });
     };
 
@@ -1158,7 +1224,16 @@
     return null;
   }
 
+  function removeScheduleBuilderExportButton() {
+    document.getElementById("assExportCalendarBtn")?.remove();
+  }
+
   function injectScheduleBuilderExportButton() {
+    if (ASS.state.settings.showCalendarExport === false) {
+      removeScheduleBuilderExportButton();
+      return;
+    }
+
     const viewBtn = findToolbarViewButton();
     if (!viewBtn) {
       return;
@@ -1229,5 +1304,6 @@
     runCalendarExport,
     runDirectCalendarExport,
     injectScheduleBuilderExportButton,
+    removeScheduleBuilderExportButton,
   });
 })();

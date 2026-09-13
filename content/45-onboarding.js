@@ -134,6 +134,7 @@
           return;
         }
         if (!forceShow && result?.[config.onboardingStorageKey]) {
+          api.maybeShowWhatsNew?.();
           return;
         }
         renderOnboardingModal({ firstRun: true });
@@ -142,11 +143,13 @@
 
     if (forceShow) {
       api.snipeLog("[onboarding]", { action: "assReset", note: "showing welcome modal" });
-      clearOnboardingDismissed(proceed);
+      void Promise.resolve(api.handleAssResetFromUrl?.()).finally(() => {
+        clearOnboardingDismissed(proceed);
+      });
       return;
     }
 
-    proceed();
+    void Promise.resolve(api.handleAssResetFromUrl?.()).finally(proceed);
   }
 
   function listItem() {
@@ -174,6 +177,9 @@
 
     const builtByHref = ASS.branding.homepageUrl || "https://vijitdua.com";
     const shareUrl = ASS.branding.shareUrl || "https://ass.vijit.app";
+    const shareText =
+      ASS.branding.shareMessage ||
+      `I used Aggie Schedule Sniper for registration — ${shareUrl}`;
 
     ensureOnboardingStyles();
 
@@ -221,7 +227,7 @@
 
     shareBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      void copyShareUrl(shareUrl).then((copied) => {
+      void copyShareUrl(shareText).then((copied) => {
         if (copied) {
           shareBtn.classList.add("is-copied");
           showToast("Copied to your clipboard", "success");
@@ -335,7 +341,11 @@
 
     continueBtn.addEventListener("click", () => {
       if (firstRun) {
-        chrome.storage.local.set({ [config.onboardingStorageKey]: true }, dismissModal);
+        const payload = {
+          [config.onboardingStorageKey]: true,
+          ...(api.markWhatsNewSeenPayload?.() || {}),
+        };
+        chrome.storage.local.set(payload, dismissModal);
         return;
       }
       dismissModal();

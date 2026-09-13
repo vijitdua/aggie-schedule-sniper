@@ -28,7 +28,7 @@ body {
 }
 
 body:not(.embedded):not(.dev-page) {
-  min-height: 420px;
+  min-height: 450px;
 }
 
 html:has(body.embedded) {
@@ -426,14 +426,6 @@ input:checked + .slider:before {
   cursor: not-allowed;
 }
 
-.export-calendar-btn__icon {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
 .advanced-panel {
   width: 100%;
   border: 1px solid var(--soft-border);
@@ -742,6 +734,47 @@ body.dev-page #devShell {
 }
 
 .dev-cache-bar__hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dev-preview-bar {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--soft-border);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.dev-preview-bar .dev-group-header {
+  margin: 0;
+}
+
+.dev-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dev-preview-btn {
+  padding: 7px 12px;
+  border: 1px solid var(--ucd-blue, #01256e);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ucd-blue, #01256e);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dev-preview-btn:hover {
+  background: var(--ucd-blue, #01256e);
+  color: #fff;
+}
+
+.dev-preview-hint {
+  margin: 0;
   font-size: 12px;
   color: var(--muted);
 }

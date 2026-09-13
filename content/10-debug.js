@@ -183,8 +183,32 @@
         sendResponse({ ok: false });
         return false;
       }
+      window.ASS?.api?.closeDeveloperPanel?.();
       window.ASS?.api?.showOnboardingModal?.();
       sendResponse({ ok: true });
+      return false;
+    }
+
+    if (message?.type === "ASS_SHOW_WHATS_NEW") {
+      if (window.self !== window.top) {
+        sendResponse({ ok: false });
+        return false;
+      }
+      void Promise.resolve(window.ASS?.api?.forceShowWhatsNew?.()).then(
+        (ok) => {
+          sendResponse({ ok: !!ok });
+        },
+      );
+      return true;
+    }
+
+    if (message?.type === "ASS_SHOW_FEEDBACK") {
+      if (window.self !== window.top) {
+        sendResponse({ ok: false });
+        return false;
+      }
+      const ok = window.ASS?.api?.forceShowFeedbackPrompt?.();
+      sendResponse({ ok: !!ok });
       return false;
     }
 

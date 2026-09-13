@@ -11,12 +11,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Advanced Planner**: find the perfect schedule for you based on your preferences across all combinations of courses. Type courses, slide times/days/rating balance, pick sections one at a time into a selected tray (remaining options only show what's left; selected times stay greyed on other calendars), then save to Schedule Builder. Save replaces only matching unregistered sections and skips registered/waitlisted courses. When no clean schedule exists, it still shows the closest options and says exactly what had to give.
 - Planner launchers in the popup and next to Schedule Builder's course search, plus a visibility toggle.
 - Unit tests for course parsing, seat classification, conflict detection, the solver, and the MAIN-world bridge.
+- **What’s New** sheet for returning users after updates (sparse onboarding-styled card).
+- Post-success **feedback prompt** after register or calendar export (It helped / Not really / Not now), with review + share or support paths.
+- Developer menu **Preview prompts & planner** actions (What’s New, feedback, onboarding, Advanced Planner).
+- Popup **Feedback** footer link; share copies a ready-to-paste invite message.
+- Calendar export visibility toggle for Schedule Builder only (popup actions stay available).
 
 ### Changed
 
-- Manifest version **3.1.0**.
+- Soft prompts and calendar export use the same dark backdrop dim as onboarding.
+- Embedded settings panel default height **450px**.
+- Calendar export header notes when quarter dates were auto-matched from the registrar.
+
+## [3.0.1] - 2026-06-21
 
 ### Fixed
+
 - RMP ratings now appear in the **Add / Search Courses** modal (`[role='dialog']`), not only inline search results.
 - RMP watches `document.body` so ratings inject when the search modal opens dynamically.
 - Developer menu: **Clear all caches** near the top (registrar calendar + RMP).
