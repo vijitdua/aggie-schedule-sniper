@@ -272,7 +272,7 @@
 
     const itemPlanner = listItem();
     itemPlanner.append(
-      "Advanced Planner finds conflict-free section combos for your courses",
+      "Advanced Planner finds the perfect schedule for you across all combinations of your courses",
     );
     list.appendChild(itemPlanner);
 

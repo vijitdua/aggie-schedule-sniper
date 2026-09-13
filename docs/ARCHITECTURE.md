@@ -50,7 +50,7 @@ flowchart TB
 | `content/40-overlay-ui.js` | Floating UI and settings panel |
 | `content/45-onboarding.js` | First-run modal (`assOnboardingDismissed` in local storage) |
 | `content/50-bootstrap.js` | Entry point, render loop, storage listeners |
-| `content/65-advanced-planner.js` | Advanced Planner wizard: course chips, preference steps, ranked schedule cards |
+| `content/65-advanced-planner.js` | Advanced Planner wizard: course chips, preference steps, section-by-section selection |
 | `content/ui/planner-styles.js` | Advanced Planner stylesheet |
 | `content/page-scheduler-bridge.js` | MAIN-world adapter for Schedule Builder's own APIs |
 | `shared/scheduler-core.js` | Pure course normalization, conflict detection, and the schedule solver |
@@ -61,28 +61,34 @@ Scripts load in manifest order; all modules share `window.ASS`.
 
 The planner collects courses, then preferred times, then preferred days, then how
 much professor ratings should count. Every preference is a 0-4 slider position;
-none of them exclude a section outright. `generateSchedules()` then ranks all
-conflict-free combinations of one section per course and returns the best few.
+none of them exclude a section outright. `generateSchedules()` then ranks
+combinations of one section per course and returns the best few.
 
-Nothing is filtered out. Instead each section carries a `LIMIT_COST` for what it
-makes you give up — unknown seat counts, waitlist-only, clashing with a course
-you already saved, no seats at all — and any cost outranks every quality
-difference, so a compromised option can never beat a clean one but is still
-returned when there is nothing better. Overlapping classes are rejected on the
-first pass and only penalized on a retry, so even an impossible timetable
-produces ranked options. Each option reports the `limits` it hit, which is what
-the results banner and per-option warnings are built from.
+Results are built section by section: selecting a course locks that section into
+a selected tray, re-ranks remaining options around it, and hides selected
+courses from the choice list while keeping them greyed on other option
+calendars. Save is enabled only once every course is selected.
 
-Because the search is pure and in-memory, choosing “Build around this section”
-immediately recomputes every option with that section fixed; no new page
+Nothing is filtered out by preferences. Instead each section carries a
+`LIMIT_COST` for what it makes you give up — unknown seat counts, waitlist-only,
+clashing with a *different* course you already saved, no seats at all — and any
+cost outranks every quality difference, so a compromised option can never beat a
+clean one but is still returned when there is nothing better. Overlapping
+classes are rejected on the first pass and only penalized on a retry. Each
+option reports the `limits` it hit, which feeds the results banner and
+per-option warnings.
+
+Because the search is pure and in-memory, selecting or unselecting a section
+immediately recomputes every option with those sections fixed; no new page
 requests are made.
 
 Content scripts cannot read Schedule Builder's `search` / `schedule` / `user`
 objects, so `content/page-scheduler-bridge.js` runs in the MAIN world and relays
-four actions over `window.postMessage` on channel
-`ASS_ADVANCED_PLANNER_BRIDGE_V1`: `suggest_courses`, `search_courses`,
-`check_existing_conflicts`, and `save_courses`. It exposes nothing else, has no
-Chrome API access, and saving always requires a user click.
+actions over `window.postMessage` on channel `ASS_ADVANCED_PLANNER_BRIDGE_V1`:
+`suggest_courses`, `search_courses`, `check_existing_conflicts`,
+`get_course_details`, and `save_courses`. Saving always requires a user click.
+`save_courses` replaces only an unregistered section of the same course and
+skips registered/waitlisted courses while still saving the rest.
 
 Settings live under `showAdvancedPlanner` (`sync`), with chips and preferences
 cached in `assAdvancedPlannerCourses` / `assAdvancedPlannerPreferences`

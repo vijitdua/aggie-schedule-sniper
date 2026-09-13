@@ -17,7 +17,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Chrome extension for UC Davis students using Schedule Builder. Builds conflict-free course plans with professor ratings and live seat status, watches your pass time, shows a countdown, and clicks Register ALL automatically when your registration window opens.
+Chrome extension for UC Davis students using Schedule Builder. Advanced Planner finds the perfect schedule for you based on your preferences across all combinations of courses (with live seats + professor ratings), watches your pass time, shows a countdown, and clicks Register ALL automatically when your registration window opens.
 
 **Not affiliated with UC Davis.**
 
@@ -35,13 +35,14 @@ Chrome extension for UC Davis students using Schedule Builder. Builds conflict-f
 
 ### Advanced Planner
 
-Open **Advanced Planner** from the popup, or beside Schedule Builder's course search.
+Open **Advanced Planner** from the popup, or beside Schedule Builder's course search. It finds the perfect schedule for you based on your preferences across all combinations of courses.
 
 1. Type the courses you want (e.g. `CHE 002A`) and hit **Continue**.
 2. Slide how much you like each time of day, then each weekday, then whether class times or professor ratings matter more.
-3. The planner lists the best combinations as complete schedule cards with class times, seats, and professor details. Add a whole schedule, or build new combinations around one section you like.
+3. Ranked options show live seats, professor ratings, and a week calendar. Select one section at a time into your selected schedule; remaining options only show what's left to choose. Selected times stay greyed on other calendars so you can see how the next pick fits.
+4. When every course is selected, **Save** writes them into Schedule Builder — replacing only an unregistered section of the same course, and skipping any course that's already registered or waitlisted.
 
-Preferences rank options, they never filter them out. If no perfect schedule exists — overlapping classes, no open seats, a clash with something you already saved — you still get the closest options, with a banner saying exactly what had to give.
+Preferences rank options; they never hard-filter them out. If no perfect schedule exists — overlapping classes, no open seats, a clash with something else you already saved — you still get the closest options, with a banner saying exactly what had to give.
 
 ## Branches
 

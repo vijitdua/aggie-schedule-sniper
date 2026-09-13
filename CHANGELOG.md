@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Advanced Planner**: type the courses you want, slide your preferred times and days, and the planner ranks every conflict-free combination of sections (live seats + professor ratings) so you can pick one and save it to Schedule Builder. When no clean schedule exists, it still shows the closest options and says exactly what had to give.
+- **Advanced Planner**: find the perfect schedule for you based on your preferences across all combinations of courses. Type courses, slide times/days/rating balance, pick sections one at a time into a selected tray (remaining options only show what's left; selected times stay greyed on other calendars), then save to Schedule Builder. Save replaces only matching unregistered sections and skips registered/waitlisted courses. When no clean schedule exists, it still shows the closest options and says exactly what had to give.
 - Planner launchers in the popup and next to Schedule Builder's course search, plus a visibility toggle.
 - Unit tests for course parsing, seat classification, conflict detection, the solver, and the MAIN-world bridge.
 
