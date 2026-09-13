@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Soft prompts and calendar export use the same dark backdrop dim as onboarding.
+- What’s New version meta line uses the same `#51627d` color as `ass.vijit.app`.
+- Positive feedback thank-you copy: built for free & maintained; no Contributors link in that paragraph.
 - Embedded settings panel default height **450px**.
 - Calendar export header notes when quarter dates were auto-matched from the registrar.
 
