@@ -2,7 +2,7 @@ const branding = window.ASS_BRANDING || {};
 const SHARE_URL = branding.shareUrl || "https://ass.vijit.app";
 const SHARE_MESSAGE =
   branding.shareMessage ||
-  `I used Aggie Schedule Sniper for registration — ${SHARE_URL}`;
+  `Check out ${SHARE_URL}/ — it's a Schedule Builder Chrome extension for UC Davis students. Auto-registers at your pass time, exports your calendar, shows RateMyProfessors ratings right in Schedule Builder, and helps you pick the best schedule for yourself among all possible combinations of your courses!`;
 const ADVANCED_STORAGE_KEY = "assAdvancedConfig";
 
 const sniperToggle = document.getElementById("sniperToggle");
@@ -127,10 +127,14 @@ function initializeDeveloperPage() {
   clearAllCachesBtn?.addEventListener("click", clearAllCaches);
 
   document.getElementById("devShowWhatsNewBtn")?.addEventListener("click", () => {
-    void previewOnScheduleBuilder("ASS_SHOW_WHATS_NEW", "Could not show What’s New");
+    void previewOnScheduleBuilder("ASS_SHOW_WHATS_NEW", "Could not show What’s New", {
+      source: "dev_menu",
+    });
   });
   document.getElementById("devShowFeedbackBtn")?.addEventListener("click", () => {
-    void previewOnScheduleBuilder("ASS_SHOW_FEEDBACK", "Could not show feedback");
+    void previewOnScheduleBuilder("ASS_SHOW_FEEDBACK", "Could not show feedback", {
+      reason: "dev_menu",
+    });
   });
   document.getElementById("devShowOnboardingBtn")?.addEventListener("click", () => {
     void showOnboarding();
@@ -560,13 +564,14 @@ function initializePopup() {
     void previewOnScheduleBuilder(
       "ASS_SHOW_FEEDBACK",
       "Open Schedule Builder on this tab, then try again",
+      { reason: "popup_feedback" },
     );
   });
 }
 
-async function previewOnScheduleBuilder(messageType, errorLabel) {
+async function previewOnScheduleBuilder(messageType, errorLabel, extra = {}) {
   if (isEmbedded && window.parent !== window) {
-    window.parent.postMessage({ type: messageType }, "*");
+    window.parent.postMessage({ type: messageType, ...extra }, "*");
     return;
   }
 
@@ -580,7 +585,10 @@ async function previewOnScheduleBuilder(messageType, errorLabel) {
       showSnackbar("No active tab", "error");
       return;
     }
-    const res = await chrome.tabs.sendMessage(tab.id, { type: messageType });
+    const res = await chrome.tabs.sendMessage(tab.id, {
+      type: messageType,
+      ...extra,
+    });
     if (!res?.ok) {
       showSnackbar("Open Schedule Builder on this tab, then try again", "error");
       return;

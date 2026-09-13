@@ -1216,6 +1216,13 @@
     }
     chrome.storage.local.set({ [PREFERENCES_KEY]: preferences });
     setBusy(true);
+    api.snipeLog?.("[advanced_planner]", {
+      action: "find_start",
+      courseCount: selectedCourses.length,
+      ratingWeight,
+      includeWaitlist,
+      days: preferences.days || [],
+    });
     try {
       let missing = [];
       if (loadedCourseKey !== courseSetKey()) {
@@ -1224,13 +1231,31 @@
       }
       setStatus("Checking every combination…", "info");
       if (!rankOptions()) {
+        api.snipeLog?.("[advanced_planner]", {
+          action: "find_complete",
+          ok: false,
+          courseCount: selectedCourses.length,
+          missingCount: missing.length,
+        });
         return;
       }
       showStep("results");
+      api.snipeLog?.("[advanced_planner]", {
+        action: "find_complete",
+        ok: true,
+        courseCount: selectedCourses.length,
+        optionCount: planOptions.length,
+        missingCount: missing.length,
+      });
       if (missing.length) {
         setStatus(`Not offered this term: ${missing.join(", ")}.`, "info");
       }
     } catch (error) {
+      api.snipeLog?.("[advanced_planner]", {
+        action: "find_complete",
+        ok: false,
+        error: describeError(error),
+      });
       setStatus(describeError(error), "error");
     } finally {
       setBusy(false);
@@ -1243,14 +1268,24 @@
     }
     setBusy(true);
     setStatus("Saving…", "info");
+    const keys = option.sections.map(core.sectionKey);
+    api.snipeLog?.("[advanced_planner]", {
+      action: "save_start",
+      sectionCount: keys.length,
+    });
     try {
-      const keys = option.sections.map(core.sectionKey);
       const response = await pageRequest("save_courses", { crns: keys });
       if (!response.ok) {
         throw new Error(describeError(response.error));
       }
       const failed = (response.results || []).filter((item) => !item.ok);
       const saved = (response.results || []).length - failed.length;
+      api.snipeLog?.("[advanced_planner]", {
+        action: "save_complete",
+        ok: failed.length === 0,
+        saved,
+        failed: failed.length,
+      });
       setStatus(
         failed.length
           ? [
@@ -1261,6 +1296,11 @@
         failed.length ? "error" : "success",
       );
     } catch (error) {
+      api.snipeLog?.("[advanced_planner]", {
+        action: "save_complete",
+        ok: false,
+        error: describeError(error),
+      });
       setStatus(describeError(error), "error");
     } finally {
       setBusy(false);
@@ -1522,6 +1562,12 @@
 
   function openModal(options = {}) {
     if (!options.force && ASS.state.settings.showAdvancedPlanner === false) {
+      api.snipeLog?.("[advanced_planner]", {
+        action: "open",
+        ok: false,
+        skipReason: "hidden_by_setting",
+        force: !!options.force,
+      });
       return false;
     }
     api.closeSettingsPanel?.();
@@ -1533,6 +1579,12 @@
     }
     root.hidden = false;
     window.requestAnimationFrame(() => refs.courseInput.focus());
+    api.snipeLog?.("[advanced_planner]", {
+      action: "open",
+      ok: true,
+      force: !!options.force,
+      courseCount: selectedCourses.length,
+    });
     return true;
   }
 
@@ -1544,6 +1596,7 @@
       closeDetails();
       refs.resultsStep.classList.remove("is-updating", "is-updated");
       root.hidden = true;
+      api.snipeLog?.("[advanced_planner]", { action: "close" });
     }
   }
 

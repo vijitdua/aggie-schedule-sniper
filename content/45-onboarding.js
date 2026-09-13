@@ -137,6 +137,11 @@
           api.maybeShowWhatsNew?.();
           return;
         }
+        api.snipeLog("[onboarding]", {
+          action: "show",
+          firstRun: true,
+          forceShow: !!forceShow,
+        });
         renderOnboardingModal({ firstRun: true });
       });
     };
@@ -175,11 +180,11 @@
 
     api.closeSettingsPanel?.();
 
-    const builtByHref = ASS.branding.homepageUrl || "https://vijitdua.com";
+    const builtByHref = ASS.branding.authorUrl || "https://vijitdua.com";
     const shareUrl = ASS.branding.shareUrl || "https://ass.vijit.app";
     const shareText =
       ASS.branding.shareMessage ||
-      `I used Aggie Schedule Sniper for registration — ${shareUrl}`;
+      `Check out ${shareUrl}/ — it's a Schedule Builder Chrome extension for UC Davis students. Auto-registers at your pass time, exports your calendar, shows RateMyProfessors ratings right in Schedule Builder, and helps you pick the best schedule for yourself among all possible combinations of your courses!`;
 
     ensureOnboardingStyles();
 
@@ -228,6 +233,11 @@
     shareBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       void copyShareUrl(shareText).then((copied) => {
+        api.snipeLog("[onboarding]", {
+          action: "share_copy",
+          ok: !!copied,
+          firstRun,
+        });
         if (copied) {
           shareBtn.classList.add("is-copied");
           showToast("Copied to your clipboard", "success");
@@ -334,7 +344,12 @@
     continueBtn.type = "button";
     continueBtn.textContent = "Continue";
 
-    const dismissModal = () => {
+    const dismissModal = (how) => {
+      api.snipeLog("[onboarding]", {
+        action: "dismiss",
+        firstRun,
+        how: how || "unknown",
+      });
       backdrop.remove();
       ui.onboardingRoot = null;
     };
@@ -347,10 +362,12 @@
           [config.onboardingStorageKey]: true,
           ...(api.markWhatsNewSeenPayload?.() || {}),
         };
-        chrome.storage.local.set(payload, dismissModal);
+        chrome.storage.local.set(payload, () =>
+          dismissModal("continue_settled_whats_new"),
+        );
         return;
       }
-      dismissModal();
+      dismissModal("continue");
     });
 
     card.append(shareBtn, logo, title, tagline, list, disclaimer, builtBy, toast, continueBtn);
@@ -359,7 +376,7 @@
     if (!firstRun) {
       backdrop.addEventListener("click", (e) => {
         if (e.target === backdrop) {
-          dismissModal();
+          dismissModal("backdrop");
         }
       });
     }
@@ -369,6 +386,7 @@
   }
 
   function showOnboardingModal() {
+    api.snipeLog("[onboarding]", { action: "show", firstRun: false });
     renderOnboardingModal({ firstRun: false });
   }
 

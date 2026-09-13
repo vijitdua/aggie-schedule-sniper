@@ -42,7 +42,7 @@ flowchart TB
 
 | File | Role |
 |------|------|
-| `branding/official.js` | Official URLs ([ass.vijit.app](https://ass.vijit.app), [vijitdua.com](https://vijitdua.com)); forks replace this |
+| `branding/official.js` | Official URLs ([ass.vijit.app](https://ass.vijit.app), [vijitdua.com](https://vijitdua.com), [vijit.app](https://vijit.app)); forks replace this |
 | `content/00-namespace.js` | `window.ASS` config, state, UI handles |
 | `content/10-debug.js` | Ring buffer logs, export for support |
 | `content/20-pass-times.js` | Parse Pacific pass times, track selected pass |
@@ -104,6 +104,10 @@ cached in `assAdvancedPlannerCourses` / `assAdvancedPlannerPreferences`
 - `?assReset=whatsnew` — clears What’s New seen state so the update sheet can show again.
 - `?assReset=feedback` — clears feedback settled/snooze so the post-success ask can show again.
 - Debug logs: popup footer **Copy debug logs** (requires Schedule Builder tab active).
+  Relevant event tags include `[onboarding]`, `[whats_new]`, `[feedback_prompt]`,
+  `[advanced_planner]`, plus existing `[registration_*]`, `[calendar_export]`,
+  `[session_*]`, `[startup]`, `[ui]`, and `[settings_changed]`. Soft-prompt logs
+  cover show/skip/settle/snooze/answers/share; planner logs cover open/find/save.
 
 ## Frames
 

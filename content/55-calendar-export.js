@@ -838,6 +838,10 @@
       }
       closeExportModal();
       if (exportSucceeded) {
+        snipeLog("[feedback_prompt]", {
+          action: "schedule_after_success",
+          reason: "calendar_export",
+        });
         window.setTimeout(() => {
           api.maybeShowFeedbackPrompt?.({ reason: "calendar_export" });
         }, 400);

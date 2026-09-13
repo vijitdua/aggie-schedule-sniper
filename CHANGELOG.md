@@ -21,7 +21,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Soft prompts and calendar export use the same dark backdrop dim as onboarding.
 - What’s New version meta line uses the same `#51627d` color as `ass.vijit.app`.
-- Positive feedback thank-you copy: built for free & maintained; no Contributors link in that paragraph.
+- Positive feedback thank-you: built for free & maintained; “Vijit Dua” → vijitdua.com and “contributors” link inline; share copies a ready-to-paste ass.vijit.app invite and confirms instead of silently closing.
+- Debug logs cover What’s New, feedback prompts, onboarding, and Advanced Planner (show/skip/answers/share/open/find/save).
 - Embedded settings panel default height **450px**.
 - Calendar export header notes when quarter dates were auto-matched from the registrar.
 

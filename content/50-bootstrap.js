@@ -160,13 +160,22 @@
     }
     if (event.data?.type === "ASS_SHOW_WHATS_NEW") {
       if (window.self === window.top) {
+        snipeLog("[whats_new]", {
+          action: "embedded_request",
+          source: event.data?.source || "embedded",
+        });
         void api.forceShowWhatsNew?.();
       }
       return;
     }
     if (event.data?.type === "ASS_SHOW_FEEDBACK") {
       if (window.self === window.top) {
-        api.forceShowFeedbackPrompt?.();
+        const reason = event.data?.reason || event.data?.source || "embedded";
+        snipeLog("[feedback_prompt]", {
+          action: "embedded_request",
+          reason,
+        });
+        api.forceShowFeedbackPrompt?.({ reason });
       }
       return;
     }
@@ -175,6 +184,11 @@
       return;
     }
     if (event.data?.type === "ASS_OPEN_ADVANCED_PLANNER") {
+      snipeLog("[advanced_planner]", {
+        action: "open_request",
+        source: "embedded_or_popup",
+        force: event.data?.force !== false,
+      });
       api.openAdvancedPlannerModal?.({
         force: event.data?.force !== false,
       });

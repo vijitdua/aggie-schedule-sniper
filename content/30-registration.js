@@ -358,6 +358,11 @@
         ? "Registered Successfully"
         : "Unable to Register";
       if (didSucceed) {
+        snipeLog("[feedback_prompt]", {
+          action: "schedule_after_success",
+          reason: "register",
+          passNumber: activePass.passNumber,
+        });
         window.setTimeout(() => {
           api.maybeShowFeedbackPrompt?.({ reason: "register" });
         }, 900);

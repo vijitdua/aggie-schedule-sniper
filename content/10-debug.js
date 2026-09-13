@@ -194,6 +194,10 @@
         sendResponse({ ok: false });
         return false;
       }
+      snipeLog("[whats_new]", {
+        action: "popup_request",
+        source: message.source || "popup",
+      });
       void Promise.resolve(window.ASS?.api?.forceShowWhatsNew?.()).then(
         (ok) => {
           sendResponse({ ok: !!ok });
@@ -207,7 +211,12 @@
         sendResponse({ ok: false });
         return false;
       }
-      const ok = window.ASS?.api?.forceShowFeedbackPrompt?.();
+      const reason = message.reason || message.source || "popup";
+      snipeLog("[feedback_prompt]", {
+        action: "popup_request",
+        reason,
+      });
+      const ok = window.ASS?.api?.forceShowFeedbackPrompt?.({ reason });
       sendResponse({ ok: !!ok });
       return false;
     }
