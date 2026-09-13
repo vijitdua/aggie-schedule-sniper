@@ -3,7 +3,6 @@ const SHARE_URL = branding.shareUrl || "https://ass.vijit.app";
 const SHARE_MESSAGE =
   branding.shareMessage ||
   `I used Aggie Schedule Sniper for registration — ${SHARE_URL}`;
-const SUPPORT_URL = branding.supportUrl || "https://vijitdua.com/support/ass";
 const ADVANCED_STORAGE_KEY = "assAdvancedConfig";
 
 const sniperToggle = document.getElementById("sniperToggle");
@@ -34,9 +33,6 @@ const devProfessorRatingsToggle = document.getElementById("devProfessorRatingsTo
 const devCalendarExportToggle = document.getElementById("devCalendarExportToggle");
 const devAdvancedPlannerToggle = document.getElementById("devAdvancedPlannerToggle");
 const feedbackLink = document.getElementById("feedbackLink");
-if (feedbackLink && SUPPORT_URL) {
-  feedbackLink.href = SUPPORT_URL;
-}
 const isEmbedded = new URLSearchParams(location.search).get("embedded") === "1";
 const isDeveloperPage =
   new URLSearchParams(location.search).get("developer") === "1";
@@ -558,6 +554,13 @@ function initializePopup() {
 
   advancedPlannerBtn?.addEventListener("click", () => {
     void openAdvancedPlannerFromPopup();
+  });
+
+  feedbackLink?.addEventListener("click", () => {
+    void previewOnScheduleBuilder(
+      "ASS_SHOW_FEEDBACK",
+      "Open Schedule Builder on this tab, then try again",
+    );
   });
 }
 

@@ -275,7 +275,6 @@
       if (i === bumpIndex) {
         const bold = document.createElement("strong");
         bold.textContent = seg;
-        bold.style.color = "#01256e";
         bold.style.fontWeight = "700";
         container.appendChild(bold);
       } else {
@@ -467,17 +466,8 @@
         "It would mean the world if you left a review or shared this with friends.";
 
       const credit = document.createElement("p");
-      credit.append(
-        "Aggie Schedule Sniper is built for free by Vijit Dua and other student contributors. We do not track you, sell your data, or make money from this. ",
-      );
-      const contribLink = document.createElement("a");
-      contribLink.href =
-        ASS.branding.contributeUrl || "https://vijitdua.com/open-source";
-      contribLink.target = "_blank";
-      contribLink.rel = "noopener noreferrer";
-      contribLink.className = "ass-soft-link";
-      contribLink.textContent = "Contributors";
-      credit.appendChild(contribLink);
+      credit.textContent =
+        "Aggie Schedule Sniper is built for free & maintained by Vijit Dua and other student contributors. We do not track you, sell your data, or make money from this.";
 
       body.append(ask, credit);
 
@@ -566,7 +556,7 @@
 
       const meta = api.createStyledElement(
         "p",
-        "margin:0 0 14px;font-size:12px;font-weight:500;color:#94a3b8;",
+        "margin:0 0 14px;font-size:12px;font-weight:500;color:#51627d;",
       );
       const dateLabel = formatShortDate(entry.date);
       if (fromVersion && toVersion && fromVersion !== toVersion) {
@@ -657,6 +647,8 @@
       STORAGE.lastSeenManifestVersion,
     ]);
 
+    // Brand-new users still in onboarding: skip. Returning users (including
+    // those with no lastSeenManifestVersion yet) get unseen What’s New entries.
     if (!stored[onboardingKey]) {
       return;
     }

@@ -341,6 +341,8 @@
 
     continueBtn.addEventListener("click", () => {
       if (firstRun) {
+        // Brand-new installs: onboarding only. Settle What’s New so they don’t
+        // get an “updated” sheet after Continue.
         const payload = {
           [config.onboardingStorageKey]: true,
           ...(api.markWhatsNewSeenPayload?.() || {}),

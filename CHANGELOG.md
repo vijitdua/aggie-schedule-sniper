@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **What’s New** sheet for returning users after updates (sparse onboarding-styled card).
 - Post-success **feedback prompt** after register or calendar export (It helped / Not really / Not now), with review + share or support paths.
 - Developer menu **Preview prompts & planner** actions (What’s New, feedback, onboarding, Advanced Planner).
-- Popup **Feedback** footer link; share copies a ready-to-paste invite message.
+- Popup **Feedback** control that opens the It helped / Not really / Not now prompt on Schedule Builder; share copies a ready-to-paste invite message.
 - Calendar export visibility toggle for Schedule Builder only (popup actions stay available).
 
 ### Changed
