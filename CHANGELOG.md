@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Calendar export term detection no longer scrapes all page text (Oasis and similar menus could make Fall export as Winter). It now prefers `#TermSelectorText1`, then the term select, then `termCode`.
+- Registrar quarter calendar: fetch once per Schedule Builder page load; use cache only if that fetch fails (no more multi-week TTL short-circuit).
+
+### Added
+
+- Calendar export modal: term dropdown (parsed quarter selected by default, plus Manual dates…). Options are registrar columns only, chronological, detected term first. Not saved across opens.
+- Debug logs for term detection path (`[term_name]`) and parsed `termName` on export.
+
+### Changed
+
+- Calendar export date line shows `• (manual)` or `• (pulled from the UC Davis registrar calendar)`; footer under it is just `via ass.vijit.app`.
+- Onboarding and What’s New credit: **By Vijit Dua & Contributors** (linked).
+
 ## [4.0.0] - 2026-09-13
 
 ### Added

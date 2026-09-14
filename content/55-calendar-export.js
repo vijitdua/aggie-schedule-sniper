@@ -81,45 +81,34 @@
       "div",
       `margin:0;font-size:11px;line-height:1.45;color:${MUTED};`,
     );
-    wrap.appendChild(
-      api.createStyledElement(
-        "p",
-        `margin:0;font-size:11px;color:${MUTED};`,
-        formatDateRange(bounds),
-      ),
+
+    const rangeLine = api.createStyledElement(
+      "p",
+      `margin:0;font-size:11px;color:${MUTED};`,
     );
-
-    if (bounds?.source === "manual") {
-      wrap.appendChild(
-        api.createStyledElement(
-          "p",
-          `margin:2px 0 0;font-size:10px;color:${MUTED};`,
-          "Entered manually",
-        ),
-      );
-      return wrap;
-    }
-
+    const range = formatDateRange(bounds);
     const registrarUrl =
       window.ASS?.config?.registrarCalendarUrl ||
       "https://registrar.ucdavis.edu/calendar/quarter";
     const shareUrl =
       window.ASS?.branding?.shareUrl || "https://ass.vijit.app";
 
-    const pulled = api.createStyledElement(
-      "p",
-      `margin:2px 0 0;font-size:10px;line-height:1.4;color:${MUTED};`,
-    );
-    pulled.append("Quarter dates automatically pulled from the ");
-    const registrarLink = document.createElement("a");
-    registrarLink.href = registrarUrl;
-    registrarLink.target = "_blank";
-    registrarLink.rel = "noopener noreferrer";
-    registrarLink.textContent = "UC Davis registrar calendar";
-    registrarLink.style.cssText = `color:${MUTED};text-decoration:underline;`;
-    pulled.appendChild(registrarLink);
-    pulled.append(", to save you the hassle.");
-    wrap.appendChild(pulled);
+    if (bounds?.source === "manual") {
+      rangeLine.textContent = `${range} • (manual)`;
+    } else if (bounds && bounds.ok !== false && range !== "Quarter dates unavailable") {
+      rangeLine.append(`${range} • (pulled from the `);
+      const registrarLink = document.createElement("a");
+      registrarLink.href = registrarUrl;
+      registrarLink.target = "_blank";
+      registrarLink.rel = "noopener noreferrer";
+      registrarLink.textContent = "UC Davis registrar calendar";
+      registrarLink.style.cssText = `color:${MUTED};text-decoration:underline;`;
+      rangeLine.appendChild(registrarLink);
+      rangeLine.append(")");
+    } else {
+      rangeLine.textContent = range;
+    }
+    wrap.appendChild(rangeLine);
 
     const via = api.createStyledElement(
       "p",
@@ -133,10 +122,137 @@
     viaLink.textContent = "ass.vijit.app";
     viaLink.style.cssText = `color:${MUTED};text-decoration:underline;`;
     via.appendChild(viaLink);
-    via.append(" as always");
     wrap.appendChild(via);
 
     return wrap;
+  }
+
+  const MANUAL_DATES_VALUE = "__manual_dates__";
+
+  function columnToTermName(column) {
+    const text = String(column || "").trim();
+    const match = text.match(/^(Fall|Winter|Spring)\s+(20\d{2})$/i);
+    if (!match) {
+      return text;
+    }
+    return `${match[1]} Quarter ${match[2]}`;
+  }
+
+  /** Academic-year sort key: Fall Y → Winter Y+1 → Spring Y+1 → Summer Y+1 → Fall Y+1 … */
+  function termChronoKey(termName) {
+    const match = String(termName || "").match(
+      /^(Fall|Winter|Spring|Summer)\b.*?\b(20\d{2})\b/i,
+    );
+    if (!match) {
+      return Number.MAX_SAFE_INTEGER;
+    }
+    const season = match[1].toLowerCase();
+    const year = Number(match[2]);
+    const seasonIndex = { fall: 0, winter: 1, spring: 2, summer: 3 }[season];
+    if (seasonIndex == null) {
+      return Number.MAX_SAFE_INTEGER;
+    }
+    const academicStart = season === "fall" ? year : year - 1;
+    return academicStart * 4 + seasonIndex;
+  }
+
+  async function buildTermSelectOptions(selectedTermName) {
+    const selected = (selectedTermName || "").trim();
+    const listed = await api.listQuarterColumns();
+    const names = [];
+    const seen = new Set();
+
+    const push = (name) => {
+      const value = (name || "").trim();
+      if (!value || seen.has(value.toLowerCase())) {
+        return;
+      }
+      seen.add(value.toLowerCase());
+      names.push(value);
+    };
+
+    const fromRegistrar = (listed.columns || [])
+      .map(columnToTermName)
+      .sort((a, b) => termChronoKey(a) - termChronoKey(b));
+
+    push(selected);
+    for (const name of fromRegistrar) {
+      push(name);
+    }
+
+    return names;
+  }
+
+  function createTermSelect(termNames, selectedTermName, detectedTermName) {
+    const select = document.createElement("select");
+    select.setAttribute("aria-label", "Quarter");
+    select.style.cssText = [
+      "max-width:min(280px,72vw)",
+      "margin:0",
+      "padding:5px 30px 5px 9px",
+      "border:1px solid #b8c4d6",
+      "border-radius:8px",
+      "background:#fff",
+      `color:${UCD_BLUE}`,
+      "font:inherit",
+      "font-size:15px",
+      "font-weight:700",
+      "line-height:1.3",
+      "cursor:pointer",
+      "vertical-align:baseline",
+      "box-shadow:0 1px 2px rgba(1,37,110,.08)",
+      "appearance:auto",
+      "-webkit-appearance:menulist",
+    ].join(";");
+
+    const detected = (detectedTermName || "").trim();
+
+    const syncDetectedLabel = (open) => {
+      if (!detected) {
+        return;
+      }
+      for (const opt of select.options) {
+        if (opt.value !== detected) {
+          continue;
+        }
+        // Show "(detected)" in the open list only — not on the closed control.
+        opt.textContent =
+          open || !opt.selected ? `${detected} (detected)` : detected;
+        break;
+      }
+    };
+
+    for (const name of termNames) {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      if (name === selectedTermName) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    }
+
+    const manual = document.createElement("option");
+    manual.value = MANUAL_DATES_VALUE;
+    manual.textContent = "Manual dates…";
+    select.appendChild(manual);
+
+    syncDetectedLabel(false);
+
+    select.addEventListener("focus", () => {
+      syncDetectedLabel(true);
+      select.style.borderColor = UCD_BLUE;
+      select.style.boxShadow = `0 0 0 2px rgba(1,37,110,.16)`;
+    });
+    select.addEventListener("mousedown", () => syncDetectedLabel(true));
+    select.addEventListener("blur", () => {
+      syncDetectedLabel(false);
+      select.style.borderColor = "#b8c4d6";
+      select.style.boxShadow = "0 1px 2px rgba(1,37,110,.08)";
+    });
+    select.addEventListener("change", () => syncDetectedLabel(false));
+
+    return select;
   }
 
   function termYearFromName(termName) {
@@ -205,11 +321,11 @@
       error: normalized.error || registrar.error,
     });
 
-    const manual = await promptManualQuarterBounds(termName);
+    const manual = await promptManualQuarterBounds({ termName });
     if (!manual.ok) {
       return manual;
     }
-    return normalizeQuarterBounds(manual, termName);
+    return normalizeQuarterBounds(manual, manual.termName || termName);
   }
 
   function createQuarterDateField(labelText) {
@@ -224,6 +340,25 @@
     const input = document.createElement("input");
     input.type = "date";
     input.required = true;
+    input.style.cssText = `width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid ${SOFT_BORDER};border-radius:8px;font-size:13px;color:${UCD_BLUE};background:#fff;`;
+    field.appendChild(input);
+    return { field, input };
+  }
+
+  function createTermNameField(initialValue) {
+    const field = api.createStyledElement("label", "display:block;margin:0 0 10px;");
+    field.appendChild(
+      api.createStyledElement(
+        "span",
+        `display:block;margin:0 0 4px;font-size:12px;font-weight:600;color:${MUTED};`,
+        "Term name",
+      ),
+    );
+    const input = document.createElement("input");
+    input.type = "text";
+    input.required = true;
+    input.value = initialValue || "";
+    input.placeholder = "e.g. Fall Quarter 2026";
     input.style.cssText = `width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid ${SOFT_BORDER};border-radius:8px;font-size:13px;color:${UCD_BLUE};background:#fff;`;
     field.appendChild(input);
     return { field, input };
@@ -642,7 +777,15 @@
     }
   }
 
-  function promptManualQuarterBounds(termName) {
+  function promptManualQuarterBounds(options = {}) {
+    const {
+      termName = "Term",
+      message = `We couldn't read quarter dates for ${termName} from the registrar. Enter instruction begin and end (Pacific time).`,
+      allowEditTerm = true,
+      instructionBeginsIso = "",
+      instructionEndsIso = "",
+    } = options;
+
     return new Promise((resolve) => {
       void (async () => {
         closeExportModal();
@@ -680,12 +823,28 @@
           api.createStyledElement(
             "p",
             `margin:0 0 14px;font-size:13px;color:${MUTED};line-height:1.45;`,
-            `We couldn't read quarter dates for ${termName} from the registrar. Enter instruction begin and end (Pacific time).`,
+            message,
           ),
         );
 
+        let termInput = null;
+        if (allowEditTerm) {
+          const termField = createTermNameField(termName);
+          termInput = termField.input;
+          panel.appendChild(termField.field);
+        }
+
         const { field: startField, input: beginsInput } = createQuarterDateField("Quarter starts");
         const { field: endField, input: endsInput } = createQuarterDateField("Quarter ends");
+        if (instructionBeginsIso) {
+          beginsInput.value = instructionBeginsIso;
+        }
+        if (instructionEndsIso) {
+          endsInput.value = instructionEndsIso;
+        }
+        if (beginsInput.value) {
+          endsInput.min = beginsInput.value;
+        }
         panel.append(startField, endField);
 
         beginsInput.addEventListener("change", () => {
@@ -700,7 +859,7 @@
 
         const actions = api.createStyledElement(
           "div",
-          "display:flex;gap:10px;justify-content:flex-end;margin-top:14px;",
+          "display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;",
         );
         const cancelBtn = api.createStyledElement(
           "button",
@@ -713,6 +872,42 @@
           resolve({ ok: false, error: "Quarter dates required for export." });
         });
 
+        const lookupBtn = api.createStyledElement(
+          "button",
+          `padding:8px 14px;border:1px solid ${SOFT_BORDER};border-radius:999px;background:#fff;cursor:pointer;`,
+          "Use registrar dates",
+        );
+        lookupBtn.type = "button";
+        lookupBtn.addEventListener("click", () => {
+          void (async () => {
+            const nextTerm = (termInput?.value || termName).trim();
+            if (!nextTerm) {
+              return;
+            }
+            lookupBtn.disabled = true;
+            const registrar = await api.getQuarterBounds(nextTerm, { forceRefresh: false });
+            const normalized = registrar.ok
+              ? normalizeQuarterBounds(registrar, nextTerm)
+              : { ok: false, error: registrar.error };
+            if (!normalized.ok) {
+              lookupBtn.disabled = false;
+              snipeLog("[calendar_export]", {
+                action: "manual_term_lookup_failed",
+                termName: nextTerm,
+                error: normalized.error,
+              });
+              return;
+            }
+            backdrop.remove();
+            snipeLog("[calendar_export]", {
+              action: "manual_term_lookup_used",
+              termName: nextTerm,
+              source: normalized.source,
+            });
+            resolve(normalized);
+          })();
+        });
+
         const saveBtn = api.createStyledElement(
           "button",
           `padding:8px 14px;border:none;border-radius:999px;background:${UCD_BLUE};color:${UCD_GOLD};font-weight:700;cursor:pointer;`,
@@ -720,7 +915,8 @@
         );
         saveBtn.type = "button";
         saveBtn.addEventListener("click", () => {
-          if (!beginsInput.value || !endsInput.value) {
+          const nextTerm = (termInput?.value || termName).trim();
+          if (!nextTerm || !beginsInput.value || !endsInput.value) {
             return;
           }
           if (beginsInput.value > endsInput.value) {
@@ -729,7 +925,7 @@
           backdrop.remove();
           snipeLog("[calendar_export]", {
             action: "manual_bounds_used",
-            termName,
+            termName: nextTerm,
             instructionBeginsIso: beginsInput.value,
             instructionEndsIso: endsInput.value,
           });
@@ -737,17 +933,17 @@
             normalizeQuarterBounds(
               {
                 ok: true,
-                termName,
+                termName: nextTerm,
                 source: "manual",
                 instructionBeginsIso: beginsInput.value,
                 instructionEndsIso: endsInput.value,
               },
-              termName,
+              nextTerm,
             ),
           );
         });
 
-        actions.append(cancelBtn, saveBtn);
+        actions.append(cancelBtn, lookupBtn, saveBtn);
         panel.appendChild(actions);
         backdrop.appendChild(panel);
         backdrop.addEventListener("click", () => {
@@ -755,13 +951,16 @@
           resolve({ ok: false, error: "Quarter dates required for export." });
         });
         document.body.appendChild(backdrop);
-        beginsInput.focus();
+        (termInput || beginsInput).focus();
       })();
     });
   }
 
-  function showExportModal(schedule, bounds, onComplete) {
+  async function showExportModal(schedule, bounds, onComplete, options = {}) {
     closeExportModal();
+
+    const detectedTermName =
+      options.detectedTermName || schedule.detectedTermName || schedule.termName || "";
 
     const backdrop = api.createStyledElement(
       "div",
@@ -791,14 +990,22 @@
     panel.addEventListener("click", (e) => e.stopPropagation());
 
     const header = api.createStyledElement("header", "margin:0 0 8px;");
-    header.append(
-      api.createStyledElement(
-        "h2",
-        `margin:0 0 2px;font-size:16px;line-height:1.2;color:${UCD_BLUE};`,
-        `Calendar • ${schedule.termName || "Term"}`,
-      ),
-      buildExportDateSubtitle(bounds),
+    const titleEl = api.createStyledElement(
+      "h2",
+      `margin:0 0 2px;font-size:16px;line-height:1.2;color:${UCD_BLUE};display:flex;align-items:center;gap:6px;flex-wrap:wrap;`,
     );
+    titleEl.appendChild(document.createTextNode("Calendar •"));
+
+    const termNames = schedule.courses.length
+      ? await buildTermSelectOptions(schedule.termName)
+      : [schedule.termName || "Term"].filter(Boolean);
+    const termSelect = createTermSelect(
+      termNames,
+      schedule.termName || termNames[0] || "",
+      detectedTermName,
+    );
+    titleEl.appendChild(termSelect);
+    header.append(titleEl, buildExportDateSubtitle(bounds));
     panel.appendChild(header);
 
     const body = api.createStyledElement("div", "margin:0 0 10px;");
@@ -847,6 +1054,55 @@
         }, 400);
       }
     };
+
+    const reopenWith = (nextSchedule, nextBounds) => {
+      void showExportModal(nextSchedule, nextBounds, onComplete, { detectedTermName });
+    };
+
+    termSelect.addEventListener("change", () => {
+      void (async () => {
+        const value = termSelect.value;
+        if (value === MANUAL_DATES_VALUE) {
+          snipeLog("[calendar_export]", {
+            action: "term_select_manual",
+            fromTermName: schedule.termName,
+          });
+          const edited = await promptManualQuarterBounds({
+            termName: schedule.termName || "Term",
+            message: "Enter instruction begin and end (Pacific time).",
+            allowEditTerm: true,
+            instructionBeginsIso: bounds?.instructionBeginsIso || "",
+            instructionEndsIso: bounds?.instructionEndsIso || "",
+          });
+          if (!edited.ok) {
+            reopenWith(schedule, bounds);
+            return;
+          }
+          reopenWith(
+            { ...schedule, termName: edited.termName || schedule.termName },
+            edited,
+          );
+          return;
+        }
+
+        if (value === schedule.termName) {
+          return;
+        }
+
+        termSelect.disabled = true;
+        snipeLog("[calendar_export]", {
+          action: "term_select_change",
+          fromTermName: schedule.termName,
+          toTermName: value,
+        });
+        const nextBounds = await resolveQuarterBounds(value);
+        if (!nextBounds.ok) {
+          reopenWith(schedule, bounds);
+          return;
+        }
+        reopenWith({ ...schedule, termName: nextBounds.termName || value }, nextBounds);
+      })();
+    });
 
     backdrop.addEventListener("click", dismissExportModal);
 
@@ -1147,6 +1403,8 @@
 
     snipeLog("[calendar_export]", {
       action: "parsed_schedule",
+      termName: schedule.termName,
+      scheduleName: schedule.scheduleName,
       courseCount: schedule.courses.length,
       finalsFound: schedule.courses.filter(
         (course) => course.finalExam?.date && course.finalExam?.time,
@@ -1202,16 +1460,21 @@
     const prepared = await prepareCalendarExport();
     if (!prepared.ok) {
       if (prepared.schedule) {
-        showExportModal({ ...prepared.schedule, courses: [] }, null);
+        void showExportModal({ ...prepared.schedule, courses: [] }, null);
       }
       return { ok: false, error: prepared.error };
     }
 
     const { schedule, bounds } = prepared;
     return new Promise((resolve) => {
-      showExportModal(schedule, bounds, (result) => {
-        resolve(result || { ok: false, error: "Export cancelled." });
-      });
+      void showExportModal(
+        schedule,
+        bounds,
+        (result) => {
+          resolve(result || { ok: false, error: "Export cancelled." });
+        },
+        { detectedTermName: schedule.termName },
+      );
     });
   }
 

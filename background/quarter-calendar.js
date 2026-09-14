@@ -132,12 +132,11 @@ async function fetchFreshQuarters(config) {
 
 async function getQuarterCalendarData(forceRefresh = false) {
   const config = await loadConfig();
-  const ttlMs = Number(config.quarterCacheTtlMs) || 30 * 24 * 60 * 60 * 1000;
   const cached = await readCache();
-  const stale =
-    !cached?.fetchedAt || Date.now() - cached.fetchedAt > ttlMs;
 
-  if (!forceRefresh && cached?.quarters && Object.keys(cached.quarters).length && !stale) {
+  // Prefer cache only when caller is not forcing a refresh (e.g. after a
+  // once-per-page prefetch). Always try the network when forceRefresh is set.
+  if (!forceRefresh && cached?.quarters && Object.keys(cached.quarters).length) {
     return cached;
   }
 
@@ -190,6 +189,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         });
       } catch (error) {
         sendResponse({ ok: false, error: error?.message || String(error) });
+      }
+    })();
+    return true;
+  }
+
+  if (message?.type === "ASS_LIST_QUARTER_COLUMNS") {
+    void (async () => {
+      try {
+        const data = await getQuarterCalendarData(!!message.forceRefresh);
+        sendResponse({
+          ok: true,
+          columns: Object.keys(data.quarters || {}),
+          cache: { fetchedAt: data.fetchedAt, source: data.source },
+        });
+      } catch (error) {
+        sendResponse({ ok: false, error: error?.message || String(error), columns: [] });
       }
     })();
     return true;

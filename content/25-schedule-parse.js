@@ -158,15 +158,93 @@
     return parts.join("\n\n");
   }
 
-  function readTermName() {
-    const fromSelect = document.querySelector("#termCode1 option:checked")?.textContent;
-    if (fromSelect?.trim()) {
-      return normalizeText(fromSelect);
-    }
-    const fromBody = document.body.innerText.match(
-      /(Fall|Winter|Spring|Summer)[^\n]{0,40}20\d{2}/i,
+  function readTermCode() {
+    return (
+      new URLSearchParams(location.search).get("termCode") ||
+      document.querySelector("input[name='termCode']")?.value ||
+      null
     );
-    return fromBody ? normalizeText(fromBody[0]) : null;
+  }
+
+  /** Reject Oasis / course-card junk like "Winter Quarter 2027. Comment(s): 2026". */
+  function looksLikeTermName(value) {
+    const text = normalizeText(value);
+    if (!text || text.length > 64 || /comment/i.test(text)) {
+      return false;
+    }
+    return /^(Fall|Winter|Spring|Summer)\b.+\b20\d{2}$/i.test(text);
+  }
+
+  function termNameFromCode(code) {
+    const match = String(code || "").match(/^(20\d{2})(\d{2})$/);
+    if (!match) {
+      return null;
+    }
+    const [, year, suffix] = match;
+    const labels = {
+      "01": "Winter Quarter",
+      "02": "Spring Semester",
+      "03": "Spring Quarter",
+      "05": "Summer Session 1",
+      "06": "Summer Special Session",
+      "07": "Summer Session 2",
+      "08": "Summer Quarter",
+      "09": "Fall Semester",
+      "10": "Fall Quarter",
+    };
+    const label = labels[suffix];
+    return label ? `${label} ${year}` : null;
+  }
+
+  function readTermName() {
+    const { snipeLog } = api;
+    const termCode = readTermCode();
+
+    const fromLabel = normalizeText(
+      document.querySelector("#TermSelectorText1")?.textContent,
+    );
+    if (looksLikeTermName(fromLabel)) {
+      snipeLog("[term_name]", { path: "term_selector", termName: fromLabel, termCode });
+      return fromLabel;
+    }
+
+    const fromSelect = normalizeText(
+      document.querySelector("#termCode1 option:checked")?.textContent,
+    );
+    if (looksLikeTermName(fromSelect)) {
+      snipeLog("[term_name]", { path: "term_select", termName: fromSelect, termCode });
+      return fromSelect;
+    }
+
+    const fromOption = termCode
+      ? normalizeText(
+          document.querySelector(
+            `#termCode1 option[value="${CSS.escape(termCode)}"]`,
+          )?.textContent,
+        )
+      : "";
+    if (looksLikeTermName(fromOption)) {
+      snipeLog("[term_name]", {
+        path: "term_select_by_code",
+        termName: fromOption,
+        termCode,
+      });
+      return fromOption;
+    }
+
+    const fromCode = termNameFromCode(termCode);
+    if (fromCode) {
+      snipeLog("[term_name]", { path: "term_code", termName: fromCode, termCode });
+      return fromCode;
+    }
+
+    snipeLog("[term_name]", {
+      path: "miss",
+      termCode,
+      termSelectorText: fromLabel || null,
+      termSelectText: fromSelect || null,
+    });
+    return null;
   }
 
   function readScheduleName() {

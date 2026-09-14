@@ -199,7 +199,7 @@
       label: "Registrar cache TTL (ms)",
       type: "number",
       group: "calendar",
-      help: "How long fetched registrar tables are cached before refetching.",
+      help: "Unused in normal flow. Registrar is refetched once per Schedule Builder page load; cache is only used if that fetch fails.",
     },
     {
       key: "termNameToColumnRegex",

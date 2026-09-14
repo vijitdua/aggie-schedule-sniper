@@ -257,6 +257,11 @@ html:has(body.embedded) {
   white-space: nowrap;
 }
 
+.footer-meta a.footer-meta__author,
+.footer-meta__link.footer-meta__author {
+  text-decoration: underline;
+}
+
 .footer-meta__sep {
   opacity: 0.45;
   user-select: none;

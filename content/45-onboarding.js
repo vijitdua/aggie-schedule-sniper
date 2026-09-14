@@ -181,6 +181,7 @@
     api.closeSettingsPanel?.();
 
     const builtByHref = ASS.branding.authorUrl || "https://vijitdua.com";
+    const contributorsHref = "https://vijitdua.com/contributions";
     const shareUrl = ASS.branding.shareUrl || "https://ass.vijit.app";
     const shareText =
       ASS.branding.shareMessage ||
@@ -313,20 +314,27 @@
       "p",
       "margin:0 0 14px;font-size:12px;color:#51627d;",
     );
-    const builtByLink = document.createElement("a");
-    builtByLink.href = builtByHref;
-    builtByLink.target = "_blank";
-    builtByLink.rel = "noopener noreferrer";
-    builtByLink.textContent = "By Vijit Dua";
-    builtByLink.style.color = "#51627d";
-    builtByLink.style.textDecoration = "none";
-    builtByLink.addEventListener("mouseenter", () => {
-      builtByLink.style.textDecoration = "underline";
+    const authorLink = document.createElement("a");
+    authorLink.href = builtByHref;
+    authorLink.target = "_blank";
+    authorLink.rel = "noopener noreferrer";
+    authorLink.textContent = "Vijit Dua";
+    authorLink.style.color = "#51627d";
+    authorLink.style.textDecoration = "underline";
+    const contributorsLink = document.createElement("a");
+    contributorsLink.href = contributorsHref;
+    contributorsLink.target = "_blank";
+    contributorsLink.rel = "noopener noreferrer";
+    contributorsLink.textContent = "Contributors";
+    contributorsLink.style.color = "#51627d";
+    contributorsLink.style.textDecoration = "none";
+    contributorsLink.addEventListener("mouseenter", () => {
+      contributorsLink.style.textDecoration = "underline";
     });
-    builtByLink.addEventListener("mouseleave", () => {
-      builtByLink.style.textDecoration = "none";
+    contributorsLink.addEventListener("mouseleave", () => {
+      contributorsLink.style.textDecoration = "none";
     });
-    builtBy.appendChild(builtByLink);
+    builtBy.append("By ", authorLink, " & ", contributorsLink);
 
     const continueBtn = api.createStyledElement(
       "button",

@@ -784,6 +784,26 @@
         );
       }
 
+      const builtBy = api.createStyledElement(
+        "p",
+        "margin:0 0 14px;font-size:12px;color:#51627d;text-align:center;",
+      );
+      const authorLink = document.createElement("a");
+      authorLink.href = ASS.branding.authorUrl || "https://vijitdua.com";
+      authorLink.target = "_blank";
+      authorLink.rel = "noopener noreferrer";
+      authorLink.className = "ass-soft-link";
+      authorLink.textContent = "Vijit Dua";
+      authorLink.style.textDecoration = "underline";
+      const contributorsLink = document.createElement("a");
+      contributorsLink.href = "https://vijitdua.com/contributions";
+      contributorsLink.target = "_blank";
+      contributorsLink.rel = "noopener noreferrer";
+      contributorsLink.className = "ass-soft-link";
+      contributorsLink.textContent = "Contributors";
+      builtBy.append("By ", authorLink, " & ", contributorsLink);
+      card.appendChild(builtBy);
+
       card.appendChild(gotIt);
 
       void isFeedbackEligible().then((eligible) => {
