@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-09-13
+
 ### Added
 
 - **Advanced Planner**: find the perfect schedule for you based on your preferences across all combinations of courses. Type courses, slide times/days/rating balance, pick sections one at a time into a selected tray (remaining options only show what's left; selected times stay greyed on other calendars), then save to Schedule Builder. Save replaces only matching unregistered sections and skips registered/waitlisted courses. When no clean schedule exists, it still shows the closest options and says exactly what had to give.
@@ -19,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Manifest version **4.0.0**.
 - Manifest short description and store-oriented `name` mention Advanced Planner; fixed `registeration` typo; `homepage_url` → ass.vijit.app.
 - Soft prompts and calendar export use the same dark backdrop dim as onboarding.
 - What’s New version meta line uses the same `#51627d` color as `ass.vijit.app`.

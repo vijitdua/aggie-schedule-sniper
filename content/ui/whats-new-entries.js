@@ -7,8 +7,8 @@
 window.ASS_WHATS_NEW_ENTRIES = [
   {
     id: "advanced-planner",
-    version: "3.0.1",
-    date: "2026-09-12",
+    version: "4.0.0",
+    date: "2026-09-13",
     headline: "Advanced Planner",
     bullets: [
       "See every conflict-free way to take your courses",
