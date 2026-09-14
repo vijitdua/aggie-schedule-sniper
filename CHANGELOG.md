@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Manifest short description and store-oriented `name` mention Advanced Planner; fixed `registeration` typo; `homepage_url` → ass.vijit.app.
 - Soft prompts and calendar export use the same dark backdrop dim as onboarding.
 - What’s New version meta line uses the same `#51627d` color as `ass.vijit.app`.
 - Positive feedback thank-you: built for free & maintained; “Vijit Dua” → vijitdua.com and “contributors” link inline; share copies a ready-to-paste ass.vijit.app invite and confirms instead of silently closing.
