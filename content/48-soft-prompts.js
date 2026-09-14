@@ -295,6 +295,7 @@
         const bold = document.createElement("strong");
         bold.textContent = seg;
         bold.style.fontWeight = "700";
+        bold.style.textDecoration = "underline";
         container.appendChild(bold);
       } else {
         container.append(seg);
@@ -758,7 +759,7 @@
           ),
         );
       }
-      (entry.bullets || []).slice(0, 2).forEach((bullet) => {
+      (entry.bullets || []).slice(0, 3).forEach((bullet) => {
         list.appendChild(listItem(bullet));
       });
 

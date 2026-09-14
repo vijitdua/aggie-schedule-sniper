@@ -6,6 +6,19 @@
  */
 window.ASS_WHATS_NEW_ENTRIES = [
   {
+    // Calendar export existed before 4.1.0 — this release fixes term detection
+    // and makes quarter/dates editable in the modal.
+    // Advanced planner existed before 4.0.0 — we re-highlight it since the releases are so close to each other and some people might jump directly from 3.x.x to 4.1.0 (skipping 4.0.0)
+    id: "calendar-term-fix-4-1-0",
+    version: "4.1.0",
+    date: "2026-09-14",
+    headline: "Advanced Planner + calendar export",
+    bullets: [
+      "Advanced Planner: A new and improved way to find and search for your courses",
+      "Calendar export improvements: edit the quarter or dates, with improved automatic quarter dates fetched from the registrar",
+    ],
+  },
+  {
     id: "advanced-planner",
     version: "4.0.0",
     date: "2026-09-13",

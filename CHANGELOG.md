@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-09-14
+
 ### Fixed
 
 - Calendar export term detection no longer scrapes all page text (Oasis and similar menus could make Fall export as Winter). It now prefers `#TermSelectorText1`, then the term select, then `termCode`.
@@ -18,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Manifest version **4.1.0**.
 - Calendar export date line shows `• (manual)` or `• (pulled from the UC Davis registrar calendar)`; footer under it is just `via ass.vijit.app`.
 - Onboarding and What’s New credit: **By Vijit Dua & Contributors** (linked).
 
