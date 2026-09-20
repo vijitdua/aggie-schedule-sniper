@@ -33,6 +33,7 @@ const devProfessorRatingsToggle = document.getElementById("devProfessorRatingsTo
 const devCalendarExportToggle = document.getElementById("devCalendarExportToggle");
 const devAdvancedPlannerToggle = document.getElementById("devAdvancedPlannerToggle");
 const feedbackLink = document.getElementById("feedbackLink");
+const updatesLink = document.getElementById("updatesLink");
 const isEmbedded = new URLSearchParams(location.search).get("embedded") === "1";
 const isDeveloperPage =
   new URLSearchParams(location.search).get("developer") === "1";
@@ -85,6 +86,7 @@ function showExtensionVersion() {
       versionClickCount = 0;
     }, 700);
     if (versionClickCount >= 3) {
+      clearTimeout(versionClickTimer);
       versionClickCount = 0;
       void openDeveloperMenu();
     }
@@ -128,6 +130,11 @@ function initializeDeveloperPage() {
 
   document.getElementById("devShowWhatsNewBtn")?.addEventListener("click", () => {
     void previewOnScheduleBuilder("ASS_SHOW_WHATS_NEW", "Could not show What’s New", {
+      source: "dev_menu",
+    });
+  });
+  document.getElementById("devShowUpdatesBtn")?.addEventListener("click", () => {
+    void previewOnScheduleBuilder("ASS_SHOW_UPDATES", "Could not show Updates", {
       source: "dev_menu",
     });
   });
@@ -565,6 +572,14 @@ function initializePopup() {
       "ASS_SHOW_FEEDBACK",
       "Open Schedule Builder on this tab, then try again",
       { reason: "popup_feedback" },
+    );
+  });
+
+  updatesLink?.addEventListener("click", () => {
+    void previewOnScheduleBuilder(
+      "ASS_SHOW_UPDATES",
+      "Open Schedule Builder on this tab, then try again",
+      { source: "popup_updates" },
     );
   });
 }

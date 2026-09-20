@@ -168,6 +168,20 @@
       }
       return;
     }
+    if (event.data?.type === "ASS_SHOW_UPDATES") {
+      if (window.self === window.top) {
+        snipeLog("[updates_history]", {
+          action: "embedded_request",
+          source: event.data?.source || "embedded",
+          focusVersion: event.data?.focusVersion || null,
+        });
+        void api.forceShowUpdatesHistory?.({
+          focusVersion: event.data?.focusVersion || "",
+          source: event.data?.source || "embedded",
+        });
+      }
+      return;
+    }
     if (event.data?.type === "ASS_SHOW_FEEDBACK") {
       if (window.self === window.top) {
         const reason = event.data?.reason || event.data?.source || "embedded";

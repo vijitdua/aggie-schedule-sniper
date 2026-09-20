@@ -158,6 +158,163 @@
         font-weight: 500;
         text-decoration: underline;
       }
+      .ass-soft-card--scroll {
+        max-width: 480px;
+        max-height: min(88vh, 780px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        text-align: left;
+        padding-top: 18px;
+        padding-bottom: 16px;
+      }
+      .ass-soft-updates-header {
+        flex: 0 0 auto;
+        text-align: center;
+        margin-bottom: 12px;
+      }
+      .ass-soft-updates-header .ass-soft-title {
+        margin-bottom: 4px;
+      }
+      .ass-soft-updates-scroll {
+        flex: 1 1 auto;
+        overflow: auto;
+        min-height: 0;
+        padding-right: 2px;
+        margin: 0 0 12px;
+      }
+      .ass-soft-updates-footer {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .ass-soft-backdrop--top {
+        align-items: flex-start !important;
+        padding-top: max(24px, 5vh) !important;
+      }
+      .ass-soft-updates-block {
+        margin: 0 0 16px;
+      }
+      .ass-soft-updates-block:last-child {
+        margin-bottom: 4px;
+      }
+      .ass-soft-updates-heading {
+        margin: 0 0 4px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #01256e;
+        text-align: left;
+      }
+      .ass-soft-updates-subhead {
+        margin: 0 0 10px;
+        font-size: 12px;
+        line-height: 1.4;
+        color: #64748b;
+        text-align: left;
+      }
+      .ass-soft-release {
+        margin: 0 0 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .ass-soft-release > summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.35;
+        color: #01256e;
+        background: #f8fafc;
+        text-align: left;
+      }
+      .ass-soft-release > summary::-webkit-details-marker {
+        display: none;
+      }
+      .ass-soft-release > summary::before {
+        content: "▸";
+        flex: 0 0 auto;
+        margin-top: 1px;
+        color: #94a3b8;
+        font-weight: 500;
+      }
+      .ass-soft-release[open] > summary::before {
+        content: "▾";
+      }
+      .ass-soft-release-body {
+        padding: 4px 12px 12px;
+        text-align: left;
+      }
+      .ass-soft-release-meta {
+        margin: 0 0 8px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #64748b;
+        text-align: left;
+      }
+      .ass-soft-release-section {
+        margin: 12px 0 0;
+        text-align: left;
+      }
+      .ass-soft-release-section-title {
+        margin: 0 0 6px;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.3;
+        color: #01256e;
+        text-align: left;
+      }
+      .ass-soft-release-section .ass-soft-release-section-title.ass-soft-release-subsection {
+        margin-top: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #334155;
+      }
+      .ass-soft-release ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .ass-soft-changelog-details {
+        margin-top: 10px;
+        border: none;
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+      .ass-soft-changelog-details > summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 8px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+        text-align: left;
+      }
+      .ass-soft-changelog-details > summary::-webkit-details-marker {
+        display: none;
+      }
+      .ass-soft-changelog-details > summary::before {
+        content: "▸ ";
+        color: #94a3b8;
+      }
+      .ass-soft-changelog-details[open] > summary::before {
+        content: "▾ ";
+      }
+      .ass-soft-changelog-details-body {
+        padding: 0 10px 10px;
+      }
+      .ass-soft-muted {
+        margin: 0;
+        font-size: 12px;
+        color: #94a3b8;
+        text-align: left;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -245,13 +402,16 @@
     }
   }
 
-  function openSoftCard(buildCard, { onBackdrop } = {}) {
+  function openSoftCard(buildCard, { onBackdrop, pinTop = false } = {}) {
     if (window.self !== window.top || isBlockingModalOpen()) {
       return false;
     }
     api.closeSettingsPanel?.();
     ensureStyles();
     const backdrop = createBackdrop();
+    if (pinTop) {
+      backdrop.classList.add("ass-soft-backdrop--top");
+    }
     const card = api.createStyledElement("div", CARD_STYLE);
     buildCard(card, backdrop);
     backdrop.appendChild(card);
@@ -315,6 +475,256 @@
       month: "short",
       day: "numeric",
     });
+  }
+
+  const CHANGELOG_GITHUB =
+    "https://github.com/vijitdua/aggie-schedule-sniper/blob/releases/CHANGELOG.md";
+
+  async function loadChangelogReleases() {
+    const parse = globalThis.ASS_CHANGELOG?.parseChangelog;
+    if (typeof parse !== "function") {
+      throw new Error("Changelog parser missing");
+    }
+    const url = chrome.runtime.getURL("CHANGELOG.md");
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Could not load CHANGELOG.md (${response.status})`);
+    }
+    return parse(await response.text());
+  }
+
+  function appendChangelogSections(container, release) {
+    if (!release?.sections?.length) {
+      const empty = document.createElement("p");
+      empty.className = "ass-soft-muted";
+      empty.textContent = "No detailed notes for this version.";
+      container.appendChild(empty);
+      return;
+    }
+    for (const section of release.sections) {
+      const wrap = document.createElement("div");
+      wrap.className = "ass-soft-release-section";
+      const heading = document.createElement("p");
+      heading.className =
+        "ass-soft-release-section-title ass-soft-release-subsection";
+      heading.textContent = section.heading;
+      const ul = document.createElement("ul");
+      for (const bullet of section.bullets) {
+        ul.appendChild(listItem(bullet));
+      }
+      wrap.append(heading, ul);
+      container.appendChild(wrap);
+    }
+  }
+
+  function buildReleaseDetails({
+    version,
+    title,
+    meta,
+    open = false,
+    fillBody,
+  }) {
+    const details = document.createElement("details");
+    details.className = "ass-soft-release";
+    if (version) {
+      details.dataset.version = version;
+    }
+    details.open = !!open;
+    const summary = document.createElement("summary");
+    summary.textContent = title;
+    const body = document.createElement("div");
+    body.className = "ass-soft-release-body";
+    if (meta) {
+      const metaEl = document.createElement("p");
+      metaEl.className = "ass-soft-release-meta";
+      metaEl.textContent = meta;
+      body.appendChild(metaEl);
+    }
+    fillBody(body);
+    details.append(summary, body);
+    return details;
+  }
+
+  async function renderUpdatesHistory({
+    focusVersion = "",
+    markSeen = false,
+    source = "updates",
+  } = {}) {
+    let changelogReleases = [];
+    let changelogError = "";
+    try {
+      changelogReleases = await loadChangelogReleases();
+    } catch (error) {
+      changelogError = error?.message || "Could not load changelog";
+    }
+
+    const entriesByVersion = new Map(
+      getEntries().map((entry) => [entry.version, entry]),
+    );
+    const focus = focusVersion || "";
+
+    softLog("[updates_history]", {
+      action: "show",
+      source,
+      focusVersion: focus || null,
+      whatsNewCount: entriesByVersion.size,
+      changelogCount: changelogReleases.length,
+      changelogError: changelogError || null,
+    });
+
+    const opened = openSoftCard(
+      (card) => {
+        card.classList.add("ass-soft-card--scroll");
+        card.style.maxWidth = "480px";
+        card.style.maxHeight = "min(88vh, 780px)";
+        card.style.paddingTop = "18px";
+        card.style.paddingBottom = "16px";
+
+        const header = document.createElement("div");
+        header.className = "ass-soft-updates-header";
+        const title = createTitle("Updates", { tight: true });
+        const tagline = api.createStyledElement(
+          "p",
+          "margin:0 0 2px;font-size:13px;font-weight:500;color:#51627d;text-align:center;",
+          "ass.vijit.app",
+        );
+        const meta = api.createStyledElement(
+          "p",
+          "margin:0;font-size:12px;font-weight:500;color:#51627d;text-align:center;",
+          getManifestVersion() ? `v${getManifestVersion()}` : "",
+        );
+        header.append(createLogo(), title, tagline, meta);
+
+        const scroll = document.createElement("div");
+        scroll.className = "ass-soft-updates-scroll";
+
+        if (changelogError) {
+          scroll.appendChild(
+            Object.assign(document.createElement("p"), {
+              className: "ass-soft-muted",
+              textContent: changelogError,
+            }),
+          );
+        } else if (!changelogReleases.length) {
+          scroll.appendChild(
+            Object.assign(document.createElement("p"), {
+              className: "ass-soft-muted",
+              textContent: "No changelog entries found.",
+            }),
+          );
+        }
+
+        for (const release of changelogReleases) {
+          const entry = entriesByVersion.get(release.version);
+          const dateLabel =
+            formatShortDate(entry?.date || release.date) ||
+            release.date ||
+            "";
+          const titleText = dateLabel
+            ? `v${release.version} · ${dateLabel}`
+            : `v${release.version}`;
+
+          scroll.appendChild(
+            buildReleaseDetails({
+              version: release.version,
+              title: titleText,
+              open: release.version === focus,
+              fillBody: (body) => {
+                const userSection = document.createElement("div");
+                userSection.className = "ass-soft-release-section";
+                userSection.appendChild(
+                  Object.assign(document.createElement("p"), {
+                    className: "ass-soft-release-section-title",
+                    textContent: "User Facing Notes",
+                  }),
+                );
+                if (entry?.bullets?.length || entry?.headline) {
+                  if (entry.headline) {
+                    userSection.appendChild(
+                      Object.assign(document.createElement("p"), {
+                        className: "ass-soft-release-meta",
+                        textContent: entry.headline,
+                      }),
+                    );
+                  }
+                  const list = document.createElement("ul");
+                  (entry.bullets || []).forEach((bullet) => {
+                    list.appendChild(listItem(bullet));
+                  });
+                  userSection.appendChild(list);
+                } else {
+                  userSection.appendChild(
+                    Object.assign(document.createElement("p"), {
+                      className: "ass-soft-muted",
+                      textContent: "No user-facing notes for this version.",
+                    }),
+                  );
+                }
+                body.appendChild(userSection);
+
+                const devSection = document.createElement("div");
+                devSection.className = "ass-soft-release-section";
+                devSection.appendChild(
+                  Object.assign(document.createElement("p"), {
+                    className: "ass-soft-release-section-title",
+                    textContent: "Internal Developer Notes",
+                  }),
+                );
+                appendChangelogSections(devSection, release);
+                body.appendChild(devSection);
+              },
+            }),
+          );
+        }
+
+        const footer = document.createElement("div");
+        footer.className = "ass-soft-updates-footer";
+        const links = document.createElement("p");
+        links.style.cssText =
+          "margin:0;font-size:12px;text-align:center;color:#51627d;";
+        const gh = document.createElement("a");
+        gh.href = CHANGELOG_GITHUB;
+        gh.target = "_blank";
+        gh.rel = "noopener noreferrer";
+        gh.className = "ass-soft-link";
+        gh.textContent = "CHANGELOG.md on GitHub";
+        links.appendChild(gh);
+
+        const gotIt = createPrimaryButton("Got it");
+        gotIt.addEventListener("click", () => {
+          softLog("[updates_history]", {
+            action: "got_it",
+            source,
+            markSeen: !!markSeen,
+          });
+          if (markSeen) {
+            void markWhatsNewSeen().then(closeSoftPrompt);
+          } else {
+            closeSoftPrompt();
+          }
+        });
+        footer.append(links, gotIt);
+
+        card.append(header, scroll, footer);
+      },
+      {
+        pinTop: true,
+        onBackdrop: () => {
+          softLog("[updates_history]", {
+            action: "backdrop",
+            source,
+            markSeen: !!markSeen,
+          });
+          if (markSeen) {
+            void markWhatsNewSeen().then(closeSoftPrompt);
+          } else {
+            closeSoftPrompt();
+          }
+        },
+      },
+    );
+
+    return opened;
   }
 
   function getUnseenEntries(seenId) {
@@ -763,6 +1173,35 @@
         list.appendChild(listItem(bullet));
       });
 
+      const openUpdates = (focusVersion, source) => {
+        softLog("[whats_new]", {
+          action: "open_updates",
+          id: entry.id,
+          source,
+          focusVersion: focusVersion || null,
+        });
+        closeSoftPrompt();
+        void renderUpdatesHistory({
+          focusVersion,
+          markSeen: true,
+          source,
+        });
+      };
+
+      const moreDetails = createTextButton("More details for this version");
+      moreDetails.style.display = "block";
+      moreDetails.style.margin = "0 auto 4px";
+      moreDetails.addEventListener("click", () => {
+        openUpdates(entry.version, "whats_new_more_details");
+      });
+
+      const seeAll = createTextButton("See all updates & older releases");
+      seeAll.style.display = "block";
+      seeAll.style.margin = "0 auto 12px";
+      seeAll.addEventListener("click", () => {
+        openUpdates("", "whats_new_see_all");
+      });
+
       const gotIt = createPrimaryButton("Got it");
       gotIt.addEventListener("click", () => {
         softLog("[whats_new]", {
@@ -787,7 +1226,7 @@
 
       const builtBy = api.createStyledElement(
         "p",
-        "margin:0 0 14px;font-size:12px;color:#51627d;text-align:center;",
+        "margin:0 0 10px;font-size:12px;color:#51627d;text-align:center;",
       );
       const authorLink = document.createElement("a");
       authorLink.href = ASS.branding.authorUrl || "https://vijitdua.com";
@@ -803,9 +1242,7 @@
       contributorsLink.className = "ass-soft-link";
       contributorsLink.textContent = "Contributors";
       builtBy.append("By ", authorLink, " & ", contributorsLink);
-      card.appendChild(builtBy);
-
-      card.appendChild(gotIt);
+      card.append(builtBy, moreDetails, seeAll, gotIt);
 
       void isFeedbackEligible().then((eligible) => {
         softLog("[whats_new]", {
@@ -946,6 +1383,30 @@
     return true;
   }
 
+  async function forceShowUpdatesHistory(options = {}) {
+    if (window.self !== window.top) {
+      softLog("[updates_history]", {
+        action: "force_show",
+        ok: false,
+        skipReason: "iframe",
+      });
+      return false;
+    }
+    dismissBlockingModalsForPreview();
+    const ok = await renderUpdatesHistory({
+      focusVersion: options.focusVersion || "",
+      markSeen: false,
+      source: options.source || "force_show",
+    });
+    softLog("[updates_history]", {
+      action: "force_show",
+      ok: !!ok,
+      focusVersion: options.focusVersion || null,
+      source: options.source || "force_show",
+    });
+    return !!ok;
+  }
+
   function forceShowFeedbackPrompt(options = {}) {
     if (window.self !== window.top) {
       softLog("[feedback_prompt]", {
@@ -981,6 +1442,7 @@
   api.maybeShowFeedbackPrompt = maybeShowFeedbackPrompt;
   api.showFeedbackPrompt = renderFeedbackAsk;
   api.forceShowWhatsNew = forceShowWhatsNew;
+  api.forceShowUpdatesHistory = forceShowUpdatesHistory;
   api.forceShowFeedbackPrompt = forceShowFeedbackPrompt;
   api.clearWhatsNewState = clearWhatsNewState;
   api.clearFeedbackState = clearFeedbackState;

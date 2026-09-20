@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [4.1.1] - 2026-09-20
+
+### Fixed
+
+- Calendar `.ics` export: when instruction begins mid-week (e.g. Fall Wed start), MWF/TuTh series now `DTSTART` on the first matching weekday on or after instruction begin — not `dayCodes[0]` (which skipped Wed/Fri of week 1 and left only discussions looking “wrong”).
+
+### Added
+
+- **Updates history** in the extension: browse every What’s New highlight plus the full `CHANGELOG.md` (loaded from the package — one source of truth). Open from the What’s New card (“More details” / “See all updates”), popup **Updates** / version click, or the developer preview button.
+
+### Changed
+
+- Manifest version **4.1.1**.
+- Popup version line is `vX.Y.Z · updates` (opens Updates history); triple-click the version for the developer menu.
+
 ## [4.1.0] - 2026-09-14
 
 ### Fixed

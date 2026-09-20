@@ -161,9 +161,13 @@
         <span class="footer-meta__sep" aria-hidden="true">·</span>
         <button type="button" class="footer-meta__link footer-debug-btn" id="copyDebugBtn">⚙️ Copy debug logs</button>
       </p>
-      <span class="version-wrap" tabindex="0" aria-describedby="versionDevTip">
-        <span class="popup-version" id="popupVersion" aria-label="Extension version"></span>
-        <span class="setting-tooltip setting-tooltip--version" id="versionDevTip" role="tooltip">Triple click to open developer menu</span>
+      <span class="version-wrap">
+        <span class="version-wrap__version" tabindex="0" aria-describedby="versionDevTip">
+          <span class="popup-version" id="popupVersion" aria-label="Extension version"></span>
+          <span class="setting-tooltip setting-tooltip--version" id="versionDevTip" role="tooltip">Triple-click for developer menu</span>
+        </span>
+        <span class="version-wrap__sep" aria-hidden="true">·</span>
+        <button type="button" class="popup-version popup-version--link" id="updatesLink">updates</button>
       </span>
     </footer>
   </main>
@@ -207,6 +211,7 @@
       </div>
       <div class="dev-preview-actions">
         <button type="button" id="devShowWhatsNewBtn" class="dev-preview-btn">Show What’s New</button>
+        <button type="button" id="devShowUpdatesBtn" class="dev-preview-btn">Show Updates history</button>
         <button type="button" id="devShowFeedbackBtn" class="dev-preview-btn">Show feedback</button>
         <button type="button" id="devShowOnboardingBtn" class="dev-preview-btn">Show onboarding</button>
         <button type="button" id="devOpenPlannerBtn" class="dev-preview-btn">Open Advanced Planner</button>

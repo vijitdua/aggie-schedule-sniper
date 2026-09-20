@@ -298,11 +298,17 @@ html:has(body.embedded) {
 
 .popup-version {
   margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
   font-size: 10px;
   line-height: 1.2;
+  font-family: inherit;
+  font-weight: inherit;
   color: #94a3b8;
   letter-spacing: 0.02em;
   user-select: none;
+  cursor: default;
 }
 
 .socials {
@@ -984,11 +990,26 @@ body.dev-page #devShell {
 
 .version-wrap {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: 10px;
+  line-height: 1.2;
+  color: #94a3b8;
+  letter-spacing: 0.02em;
+}
+
+.version-wrap__version {
+  position: relative;
   display: inline-block;
   outline: none;
 }
 
-.version-wrap:focus-visible {
+.version-wrap__sep {
+  color: #94a3b8;
+}
+
+.version-wrap__version:focus-visible {
   outline: 2px solid var(--ucd-gold);
   outline-offset: 2px;
   border-radius: 4px;
@@ -1007,12 +1028,17 @@ body.dev-page #devShell {
   margin-right: -4px;
 }
 
-.version-wrap:hover .setting-tooltip,
-.version-wrap:focus-visible .setting-tooltip {
+.version-wrap__version:hover .setting-tooltip,
+.version-wrap__version:focus-visible .setting-tooltip {
   visibility: visible;
   opacity: 1;
 }
 
-.popup-version {
-  cursor: default;
+.popup-version--link {
+  cursor: pointer;
+}
+
+.popup-version--link:hover {
+  color: #94a3b8;
+  text-decoration: underline;
 }

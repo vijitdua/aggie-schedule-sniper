@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Aggie Schedule Sniper–UC Davis Auto Register, Calendar, RMP, Planner",
   "short_name": "Aggie Schedule Sniper",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "description": "Auto-register at pass time, calendar export, RateMyProfessors in Schedule Builder, & Advanced Planner for UC Davis. By vijitdua.com",
   "author": "Vijit Dua",
   "homepage_url": "https://vijit.app",
@@ -54,6 +54,7 @@
         "content/30-registration.js",
         "content/35-session-keepalive.js",
         "shared/ics.js",
+        "shared/changelog.js",
         "content/25-schedule-parse.js",
         "content/26-quarter-dates.js",
         "content/55-calendar-export.js",
@@ -81,7 +82,8 @@
         "branding/official.js",
         "shared/clipboard.js",
         "shared/config-schema.js",
-        "shared/ics.js"
+        "shared/ics.js",
+        "CHANGELOG.md"
       ],
       "matches": [
         "https://my.ucdavis.edu/*",

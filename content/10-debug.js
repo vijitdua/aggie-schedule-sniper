@@ -206,6 +206,27 @@
       return true;
     }
 
+    if (message?.type === "ASS_SHOW_UPDATES") {
+      if (window.self !== window.top) {
+        sendResponse({ ok: false });
+        return false;
+      }
+      snipeLog("[updates_history]", {
+        action: "popup_request",
+        source: message.source || "popup",
+        focusVersion: message.focusVersion || null,
+      });
+      void Promise.resolve(
+        window.ASS?.api?.forceShowUpdatesHistory?.({
+          focusVersion: message.focusVersion || "",
+          source: message.source || "popup",
+        }),
+      ).then((ok) => {
+        sendResponse({ ok: !!ok });
+      });
+      return true;
+    }
+
     if (message?.type === "ASS_SHOW_FEEDBACK") {
       if (window.self !== window.top) {
         sendResponse({ ok: false });

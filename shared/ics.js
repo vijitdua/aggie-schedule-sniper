@@ -140,6 +140,26 @@
     return baseDate;
   }
 
+  /**
+   * Earliest calendar day on/after baseDate that matches any BYDAY code.
+   * Needed when instruction begins mid-week (e.g. Wed): MWF must start Wed,
+   * not the following Monday (dayCodes[0]).
+   */
+  function firstOccurrenceOnOrAfterAny(baseDate, dayCodes) {
+    const codes = (dayCodes || []).filter(Boolean);
+    if (!codes.length) {
+      return baseDate;
+    }
+    let best = null;
+    for (const code of codes) {
+      const occurrence = firstOccurrenceOnOrAfter(baseDate, code);
+      if (!best || compareParts(occurrence, best) < 0) {
+        best = occurrence;
+      }
+    }
+    return best || baseDate;
+  }
+
   function endOfPtDay(date) {
     if (!date) {
       return null;
@@ -311,6 +331,7 @@
     parseUsDateTime,
     parseTimeOnDate,
     firstOccurrenceOnOrAfter,
+    firstOccurrenceOnOrAfterAny,
     endOfPtDay,
     addHours,
     partsSortKey,

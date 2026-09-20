@@ -1320,9 +1320,9 @@
         .join("\n");
 
       course.meetings.forEach((meeting, meetingIndex) => {
-        const occurrenceDate = ICS.firstOccurrenceOnOrAfter(
+        const occurrenceDate = ICS.firstOccurrenceOnOrAfterAny(
           startBase,
-          meeting.dayCodes[0],
+          meeting.dayCodes,
         );
         const start = ICS.parseTimeOnDate(occurrenceDate, meeting.start);
         const end = ICS.parseTimeOnDate(occurrenceDate, meeting.end);

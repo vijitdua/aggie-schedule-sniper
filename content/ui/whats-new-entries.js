@@ -6,6 +6,16 @@
  */
 window.ASS_WHATS_NEW_ENTRIES = [
   {
+    id: "calendar-first-week-4-1-1",
+    version: "4.1.1",
+    date: "2026-09-20",
+    headline: "Calendar export fix",
+    bullets: [
+      "Fixed issues with missing events during the first week of the quarter in calendar exports",
+      "Public detailed version history (click 'updates' in the popup)",
+    ],
+  },
+  {
     // Calendar export existed before 4.1.0 — this release fixes term detection
     // and makes quarter/dates editable in the modal.
     // Advanced planner existed before 4.0.0 — we re-highlight it since the releases are so close to each other and some people might jump directly from 3.x.x to 4.1.0 (skipping 4.0.0)
