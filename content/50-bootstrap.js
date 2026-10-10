@@ -111,6 +111,7 @@
   }
 
   function renderApp() {
+    api.syncScheduleTravelReminders?.();
     const passTimes = api.getParsedPassTimes();
     const armed = api.isSnipingArmed?.(passTimes) ?? false;
     if (window.self === window.top) {

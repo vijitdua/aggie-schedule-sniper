@@ -823,5 +823,7 @@
 .ass-planner__status--info { display: block; background: #eff6ff; color: #1e3a8a; }
 .ass-planner__status--error { display: block; background: #fff1f2; color: #9f1239; }
 .ass-planner__status--success { display: block; background: #ecfdf3; color: #166534; }
+.ass-planner__card-head { flex-wrap: wrap; gap: 8px; }
+.ass-planner__bundle-select { margin-left: auto; }
 `;
 })();

@@ -327,3 +327,24 @@ test("seat summaries stay short and use the RMP badge tones", () => {
     { label: "Full", tone: "low" },
   );
 });
+
+test("short transfers use consecutive same-day meetings and include the 30-minute boundary", () => {
+  const make = (courseKey, start, end, days = ["M"]) => ({ courseKey,
+    meetings: [{ days, startMinutes: start, endMinutes: end, location: "Davis Hall" }] });
+  const result = core.shortTransfers([
+    make("C", 630, 660), make("A", 540, 570), make("B", 600, 630),
+    make("D", 691, 720), make("E", 570, 590, ["T"]),
+  ]);
+  assert.deepEqual(result.map(({ from, to, gap }) => [from.section.courseKey, to.section.courseKey, gap]),
+    [["A", "B", 30], ["B", "C", 0]]);
+});
+
+test("short transfers skip overlaps, TBA times, and invalid times", () => {
+  const meeting = { days: ["M"], startMinutes: 540, endMinutes: 600 };
+  assert.deepEqual(core.shortTransfers([
+    { meetings: [meeting] },
+    { meetings: [{ ...meeting, startMinutes: 580, endMinutes: 610 }] },
+    { meetings: [{ ...meeting, isTba: true }] },
+    { meetings: [{ ...meeting, startMinutes: null }] },
+  ]), []);
+});
