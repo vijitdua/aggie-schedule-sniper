@@ -25,7 +25,6 @@
   };
 
   const SNOOZE_MS = 14 * 24 * 60 * 60 * 1000;
-  const MAX_NOT_NOW = 3;
   const STYLE_ID = "ass-soft-prompt-styles-v3";
 
   function getEntries() {
@@ -824,14 +823,6 @@
         snoozeUntil,
       };
     }
-    if (notNowCount >= MAX_NOT_NOW) {
-      return {
-        eligible: false,
-        skipReason: "max_not_now",
-        notNowCount,
-        snoozeUntil,
-      };
-    }
     if (snoozeUntil && Date.now() < snoozeUntil) {
       return {
         eligible: false,
@@ -862,19 +853,6 @@
   async function snoozeFeedback(source) {
     const result = await storageGet([STORAGE.feedbackNotNowCount]);
     const nextCount = Number(result[STORAGE.feedbackNotNowCount] || 0) + 1;
-    if (nextCount >= MAX_NOT_NOW) {
-      await storageSet({
-        [STORAGE.feedbackSettled]: true,
-        [STORAGE.feedbackNotNowCount]: nextCount,
-        [STORAGE.feedbackSnoozeUntil]: 0,
-      });
-      softLog("[feedback_prompt]", {
-        action: "settle",
-        source: source || "max_not_now",
-        notNowCount: nextCount,
-      });
-      return { settledForever: true, notNowCount: nextCount };
-    }
     const snoozeUntil = Date.now() + SNOOZE_MS;
     await storageSet({
       [STORAGE.feedbackNotNowCount]: nextCount,
