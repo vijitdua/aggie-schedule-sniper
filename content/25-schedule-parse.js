@@ -256,7 +256,7 @@
     return fromText ? normalizeText(fromText[1]) : "Schedule 1";
   }
 
-  function parseScheduleFromDom() {
+  function parseScheduleFromDom({ includeUnregistered = false } = {}) {
     const termName = readTermName();
     const scheduleName = readScheduleName();
     const selector =
@@ -278,7 +278,7 @@
     for (const card of cards) {
       const fullText = normalizeText(card.textContent);
       const status = getCourseStatus(card, fullText);
-      if (status !== "registered" && status !== "waitlisted") {
+      if (!includeUnregistered && status !== "registered" && status !== "waitlisted") {
         continue;
       }
 

@@ -131,6 +131,7 @@
       endMinutes,
       startTime: normalizeText(raw?.startTime),
       endTime: normalizeText(raw?.endTime),
+      building: normalizeText(raw?.building),
       location: normalizeText(`${raw?.building || ""} ${raw?.room || ""}`) || "TBA",
       isTba: !days.length || startMinutes == null || endMinutes == null,
     };
@@ -521,6 +522,24 @@
       : { label: "?", tone: "neutral" };
   }
 
+  function shortTransfers(sections) {
+    const transfers = [];
+    for (const [, day] of DAY_KEYS) {
+      const events = sections.flatMap((section) => (section.meetings || [])
+        .filter((meeting) => !meeting.isTba && meeting.days?.includes(day) &&
+          Number.isFinite(meeting.startMinutes) && Number.isFinite(meeting.endMinutes))
+        .map((meeting) => ({ section, ...meeting })))
+        .sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes);
+      for (let i = 1; i < events.length; i++) {
+        const from = events[i - 1];
+        const to = events[i];
+        const gap = to.startMinutes - from.endMinutes;
+        if (gap >= 0 && gap <= 30) transfers.push({ day, from, to, gap });
+      }
+    }
+    return transfers;
+  }
+
   return {
     normalizeCourseCode,
     parseCourseCodes,
@@ -528,6 +547,7 @@
     normalizeSchedulerPreferences,
     classifyAvailability,
     meetingsConflict,
+    shortTransfers,
     generateSchedules,
     sectionKey,
     formatMeeting,
