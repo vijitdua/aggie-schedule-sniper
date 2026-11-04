@@ -17,7 +17,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Chrome extension for UC Davis students using Schedule Builder. Advanced Planner finds the perfect schedule for you based on your preferences across all combinations of courses (with live seats + professor ratings), watches your pass time, shows a countdown, and clicks Register ALL automatically when your registration window opens.
+Chrome extension for UC Davis students using Schedule Builder. Auto-registers students at pass time, allows schedule to calendar export, adds RateMyProfessors integrations in Schedule Builder, & adds an Advanced Planner for UC Davis students.
 
 **Not affiliated with UC Davis.**
 
