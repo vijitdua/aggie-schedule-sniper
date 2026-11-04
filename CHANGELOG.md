@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Post-success feedback: **Not now** and backdrop dismiss snooze the prompt for 14 days, then it can show again. A third dismiss no longer settles it permanently. **It helped** and **Not really** still settle the automatic prompt. People already settled (including the old third-dismiss cutoff) stay settled until `?assReset=feedback`.
+
 ## [4.1.1] - 2026-09-20
 
 ### Fixed
